@@ -5,10 +5,11 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QStackedWidget,
     QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QLabel,
     QLineEdit, QListWidgetItem, QFormLayout, QSpinBox, QDialog,
-    QDialogButtonBox, QCheckBox, QProgressBar
+    QDialogButtonBox, QCheckBox, QProgressBar, QFrame
 )
-from PyQt6.QtCore import Qt, QTimer, QSettings, QUrl
-from PyQt6.QtMultimedia import QSoundEffect
+from PyQt6.QtCore import Qt, QTimer, QSettings, QUrl, QSize
+from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
+from PyQt6.QtGui import QIcon
 
 
 class TimerSettingDialog(QDialog):
@@ -66,6 +67,18 @@ class PomodoroWidget(QWidget):
     def __init__(self):
         super().__init__()
 
+        # --- 1.メインの水平レイアウトを作成 ---
+        main_layout = QHBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+
+        # --- 2.左と右に分ける ---
+        left_panel = QWidget()
+        right_panel = QWidget()
+
+        left_layout = QVBoxLayout(left_panel)
+        right_layout = QVBoxLayout(right_panel)
+        right_layout.setAlignment(Qt.AlignmentFlag.AlignTop)  # 上寄せ
+
         # 設定読み込み
         self.settings = QSettings("CHU1PC", "PomodoroApp")
         self.default_minutes = int(self.settings.value("timer/minutes", 25))
@@ -79,31 +92,39 @@ class PomodoroWidget(QWidget):
         self.remaining_tenths = 0
         self.total_tenths = 0
 
-        layout = QVBoxLayout(self)
-
         # 設定ボタン
         header = QHBoxLayout()
         self.settings_btn = QPushButton("…")
         self.settings_btn.setFixedSize(30, 30)
         header.addWidget(self.settings_btn)
-        layout.addLayout(header)
+        header.addStretch()
+        right_layout.addLayout(header)
 
         # セット数表示
         self.sets_label = QLabel("セット数: 0")
         self.sets_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-        layout.addWidget(self.sets_label)
+        self.sets_label.setStyleSheet("font-size: 24px;")
+        right_layout.addWidget(self.sets_label)
+
+        # 総勉強時間の表示
+        self.total_time = QLabel("総勉強時間: 0時間00分")
+        self.total_time.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.total_time.setStyleSheet("font-size: 24px;")
+        right_layout.addWidget(self.total_time)
 
         # 時間表示
         self.time_label = QLabel()
         self.time_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         self.time_label.setStyleSheet("font-size: 48px;")
-        layout.addWidget(self.time_label)
+        left_layout.addStretch()
+        left_layout.addWidget(self.time_label)
+        left_layout.addStretch()
 
         # プログレスバー
         self.progress = QProgressBar()
         self.progress.setTextVisible(False)
         self.progress.setFixedHeight(20)
-        layout.addWidget(self.progress)
+        left_layout.addWidget(self.progress)
 
         # ボタン: 開始/停止 と リセット
         btn_layout = QHBoxLayout()
@@ -111,16 +132,37 @@ class PomodoroWidget(QWidget):
         btn_layout.addWidget(self.start_btn)
         self.reset_btn = QPushButton("リセット")
         btn_layout.addWidget(self.reset_btn)
-        layout.addLayout(btn_layout)
+        left_layout.addLayout(btn_layout)
 
-        # サウンド設定: QSoundを使用
-        sound_file = os.path.join(os.path.dirname(__file__), 'beep.wav')
-        if os.path.exists(sound_file):
-            self.sound = QSoundEffect()
-            self.sound.setSource(QUrl.fromLocalFile(sound_file))
-        else:
-            self.sound = None
-            print(f"警告: サウンドファイルが見つかりません: {sound_file}")
+        # 境界線を作成
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.VLine)
+        separator.setFrameShadow(QFrame.Shadow.Sunken)
+        separator.setLineWidth(1)
+
+        # --- メインレイアウトに全てを追加 ---
+        main_layout.addWidget(left_panel, stretch=3)
+        main_layout.addWidget(separator)
+        main_layout.addWidget(right_panel, stretch=2)
+
+        # 音声再生用
+        self.player = QMediaPlayer()
+        self.audio_output = QAudioOutput()
+        self.player.setAudioOutput(self.audio_output)
+        self.player.setSource(QUrl.fromLocalFile(os.path.join(
+            os.path.dirname(__file__), "beep1.mp3"
+        )))
+
+        audio_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                                  "audio")
+
+        self.audio_output.setVolume(0.5)
+        self.work_end_sound = QUrl.fromLocalFile(os.path.join(
+            audio_path, "beep2.mp3"
+        ))
+        self.break_end_sound = QUrl.fromLocalFile(os.path.join(
+            audio_path, "beep1.mp3"
+        ))
 
         # タイマー
         self.timer = QTimer(self)
@@ -142,6 +184,9 @@ class PomodoroWidget(QWidget):
         self.progress.setValue(self.progress.maximum())
         self.start_btn.setText("開始")
         self.sets_label.setText(f"セット数: {self.sets_completed}")
+        total_hours = (self.sets_completed * self.default_minutes) // 60
+        total_minutes = (self.sets_completed * self.default_minutes) % 60
+        self.total_time.setText(f"総勉強時間: {total_hours}時間{total_minutes}分")
 
     def _open_settings(self):
         parent = self.window()
@@ -203,14 +248,19 @@ class PomodoroWidget(QWidget):
             self.time_label.setText(f"{m:02d}:{s:02d}")
             self.progress.setValue(self.remaining_tenths)
             return
+
         # フェーズ終了時に音を鳴らす
-        if self.sound:
-            self.sound.play()
+        if self.is_break:
+            self.player.setSource(self.break_end_sound)
         else:
-            QApplication.beep()
+            self.player.setSource(self.work_end_sound)
+
+        self.player.play()
+
         # 作業フェーズ完了時にセット数加算
         if not self.is_break:
             self.sets_completed += 1
+
         # フェーズ切替
         self.is_break = not self.is_break
         self.timer.stop()
@@ -254,10 +304,24 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
 
         self.nav = QListWidget()
-        self.nav.setFixedWidth(120)
-        for label in ["⌛️ Pomodoro", "📝 Tasks"]:
-            item = QListWidgetItem(label)
-            item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.nav.setFixedWidth(50)
+        self.nav.setIconSize(QSize(24, 24))
+        self.nav.setStyleSheet("background-color: #414141")
+
+        img_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "img")
+        menu_items = [
+            (os.path.join(img_path, "pomodoro.png"), "ポモドーロ"),
+            (os.path.join(img_path, "tasks.png"), "タスク"),
+            (os.path.join(img_path, "matrix.png"), "時間管理のマトリクス")
+        ]
+
+        for icon_path, text in menu_items:
+            item = QListWidgetItem("")
+            item.setIcon(QIcon(icon_path))
+
+            item.setToolTip(text)
+
             self.nav.addItem(item)
         main_layout.addWidget(self.nav)
 

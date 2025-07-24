@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QStackedWidget,
     QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QLabel,
     QLineEdit, QListWidgetItem, QFormLayout, QSpinBox, QDialog,
-    QDialogButtonBox, QCheckBox, QProgressBar, QFrame
+    QDialogButtonBox, QCheckBox, QProgressBar, QFrame, QSlider
 )
 from PyQt6.QtCore import Qt, QTimer, QSettings, QUrl, QSize
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
@@ -63,6 +63,42 @@ class TimerSettingDialog(QDialog):
         )
 
 
+class VolumeSettingDialog(QDialog):
+    def __init__(self, parent=None, initial_volume=50):
+        super().__init__(parent)
+
+        layout = QVBoxLayout(self)
+
+        # 現在の音量を表示する
+        self.volume_label = QLabel(f"音量: {initial_volume}%")
+        self.volume_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.volume_label)
+
+        # 音量調整スライダー
+        self.slider = QSlider(Qt.Orientation.Horizontal)
+        self.slider.setRange(0, 100)
+        self.slider.setValue(initial_volume)
+        layout.addWidget(self.slider)
+
+        # スライダーの値が変更されたらラベルを更新
+        self.slider.valueChanged.connect(self.update_label)
+
+        # OK/Cancelボタン
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok |
+            QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def update_label(self, value):
+        self.volume_label.setText(f"音量: {value}%")
+
+    def volume(self):
+        return self.slider.value()
+
+
 class PomodoroWidget(QWidget):
     def __init__(self):
         super().__init__()
@@ -92,13 +128,21 @@ class PomodoroWidget(QWidget):
         self.remaining_tenths = 0
         self.total_tenths = 0
 
-        # 設定ボタン
+        # タイマー設定ボタン
         header = QHBoxLayout()
         self.settings_btn = QPushButton("…")
         self.settings_btn.setFixedSize(30, 30)
         header.addWidget(self.settings_btn)
         header.addStretch()
         right_layout.addLayout(header)
+
+        # 音量設定ボタン
+        volume_header = QHBoxLayout()
+        self.volume_setting = QPushButton("🔈")
+        self.volume_setting.setFixedSize(30, 30)
+        volume_header.addStretch()
+        volume_header.addWidget(self.volume_setting)
+        left_layout.addLayout(volume_header)
 
         # セット数表示
         self.sets_label = QLabel("セット数: 0")
@@ -126,14 +170,19 @@ class PomodoroWidget(QWidget):
         self.progress.setFixedHeight(20)
         left_layout.addWidget(self.progress)
 
-        # ボタン: 開始/停止 と リセット
+        # ボタン: 開始/停止 と リセットとスキップ
         btn_layout = QHBoxLayout()
         self.start_btn = QPushButton("開始")
         btn_layout.addWidget(self.start_btn)
+
         self.reset_btn = QPushButton("リセット")
         btn_layout.addWidget(self.reset_btn)
+
+        self.skip_btn = QPushButton("スキップ")
+        btn_layout.addWidget(self.skip_btn)
         left_layout.addLayout(btn_layout)
 
+        #
         # 境界線を作成
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.VLine)
@@ -145,6 +194,19 @@ class PomodoroWidget(QWidget):
         main_layout.addWidget(separator)
         main_layout.addWidget(right_panel, stretch=2)
 
+        # タイマー
+        self.timer = QTimer(self)
+        self.timer.setInterval(100)
+        self.timer.timeout.connect(self._update_timer)
+
+        # シグナル
+        self.start_btn.clicked.connect(self._on_start_stop)
+        self.reset_btn.clicked.connect(self._on_reset)
+        self.skip_btn.clicked.connect(self._skip_timer)
+
+        self.settings_btn.clicked.connect(self._open_settings)
+        self.volume_setting.clicked.connect(self._open_volume_settings)
+
         # 音声再生用
         self.player = QMediaPlayer()
         self.audio_output = QAudioOutput()
@@ -155,8 +217,8 @@ class PomodoroWidget(QWidget):
 
         audio_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
                                   "audio")
-
-        self.audio_output.setVolume(0.5)
+        saved_volume = float(self.settings.value("audio/volume", 0.5))
+        self.audio_output.setVolume(saved_volume)
         self.work_end_sound = QUrl.fromLocalFile(os.path.join(
             audio_path, "beep2.mp3"
         ))
@@ -164,17 +226,11 @@ class PomodoroWidget(QWidget):
             audio_path, "beep1.mp3"
         ))
 
-        # タイマー
-        self.timer = QTimer(self)
-        self.timer.setInterval(100)
-        self.timer.timeout.connect(self._update_timer)
-
-        # シグナル
-        self.start_btn.clicked.connect(self._on_start_stop)
-        self.reset_btn.clicked.connect(self._on_reset)
-        self.settings_btn.clicked.connect(self._open_settings)
-
         self._reset_display()
+
+    def _skip_timer(self):
+        # 任意でタイマーの時間を0にする
+        self.remaining_tenths = 0
 
     def _reset_display(self):
         # 表示とボタンを初期状態に
@@ -187,6 +243,19 @@ class PomodoroWidget(QWidget):
         total_hours = (self.sets_completed * self.default_minutes) // 60
         total_minutes = (self.sets_completed * self.default_minutes) % 60
         self.total_time.setText(f"総勉強時間: {total_hours}時間{total_minutes}分")
+
+    def _open_volume_settings(self):
+        current_volume_percent = int(self.audio_output.volume() * 100)
+
+        dlg = VolumeSettingDialog(self, initial_volume=current_volume_percent)
+
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            # ダイアログから新しい音量を取得
+            new_volume_precent = dlg.volume()
+            new_volume_float = new_volume_precent / 100.0
+
+            self.audio_output.setVolume(new_volume_float)
+            self.settings.setValue("audio/volume", new_volume_float)
 
     def _open_settings(self):
         parent = self.window()

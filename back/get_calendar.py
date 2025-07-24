@@ -1,12 +1,14 @@
 import sys
+import os
 
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QStackedWidget,
     QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QLabel,
     QLineEdit, QListWidgetItem, QFormLayout, QSpinBox, QDialog,
-    QDialogButtonBox, QCheckBox
+    QDialogButtonBox, QCheckBox, QProgressBar
 )
-from PyQt6.QtCore import Qt, QTimer, QSettings
+from PyQt6.QtCore import Qt, QTimer, QSettings, QUrl
+from PyQt6.QtMultimedia import QSoundEffect
 
 
 class TimerSettingDialog(QDialog):
@@ -22,15 +24,14 @@ class TimerSettingDialog(QDialog):
         layout.setHorizontalSpacing(20)
         layout.setVerticalSpacing(15)
 
-        # --- ここでスピンボックスをフォームに追加 ---
         self.pomo_time = QSpinBox()
-        self.pomo_time.setRange(0, 99)
+        self.pomo_time.setRange(1, 99)
         self.pomo_time.setValue(minutes)
         self.pomo_time.setFixedSize(80, 20)
         layout.addRow("ポモドーロの時間", self.pomo_time)
 
         self.rest_time = QSpinBox()
-        self.rest_time.setRange(0, 99)
+        self.rest_time.setRange(1, 99)
         self.rest_time.setValue(rest)
         self.rest_time.setFixedSize(80, 20)
         layout.addRow("休憩時間", self.rest_time)
@@ -43,7 +44,6 @@ class TimerSettingDialog(QDialog):
         self.chk_auto_break.setChecked(auto_break)
         layout.addRow(self.chk_auto_break)
 
-        # OK / Cancelボタン
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok |
             QDialogButtonBox.StandardButton.Cancel,
@@ -54,7 +54,6 @@ class TimerSettingDialog(QDialog):
         layout.addWidget(buttons)
 
     def values(self):
-        # 分, 休憩, 自動Pomo, 自動休憩 を返す
         return (
             self.pomo_time.value(),
             self.rest_time.value(),
@@ -67,99 +66,155 @@ class PomodoroWidget(QWidget):
     def __init__(self):
         super().__init__()
 
-        # --- QSettingsのキー定義 ---
+        # 設定読み込み
         self.settings = QSettings("CHU1PC", "PomodoroApp")
-
-        # --- 保存済み値を読み込む(未設定の場合は25:00) ---
         self.default_minutes = int(self.settings.value("timer/minutes", 25))
         self.default_rest = int(self.settings.value("timer/rest", 5))
-        self.auto_next = \
-            self.settings.value("timer/auto_next", False, type=bool)
-        self.auto_break = \
-            self.settings.value("timer/auto_break", False, type=bool)
 
+        # セット数管理
+        self.sets_completed = 0
+
+        # フェーズ管理
         self.is_break = False
+        self.remaining_tenths = 0
+        self.total_tenths = 0
 
         layout = QVBoxLayout(self)
 
-        # ヘッダー: ...ボタン
+        # 設定ボタン
         header = QHBoxLayout()
         self.settings_btn = QPushButton("…")
         self.settings_btn.setFixedSize(30, 30)
         header.addWidget(self.settings_btn)
         layout.addLayout(header)
 
-        # タイマー表示
+        # セット数表示
+        self.sets_label = QLabel("セット数: 0")
+        self.sets_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        layout.addWidget(self.sets_label)
+
+        # 時間表示
         self.time_label = QLabel()
         self.time_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         self.time_label.setStyleSheet("font-size: 48px;")
         layout.addWidget(self.time_label)
 
-        # 開始/停止ボタン
-        self.start_btn = QPushButton("開始")
-        layout.addWidget(self.start_btn)
+        # プログレスバー
+        self.progress = QProgressBar()
+        self.progress.setTextVisible(False)
+        self.progress.setFixedHeight(20)
+        layout.addWidget(self.progress)
 
-        # QTimer: 100msごと
+        # ボタン: 開始/停止 と リセット
+        btn_layout = QHBoxLayout()
+        self.start_btn = QPushButton("開始")
+        btn_layout.addWidget(self.start_btn)
+        self.reset_btn = QPushButton("リセット")
+        btn_layout.addWidget(self.reset_btn)
+        layout.addLayout(btn_layout)
+
+        # サウンド設定: QSoundを使用
+        sound_file = os.path.join(os.path.dirname(__file__), 'beep.wav')
+        if os.path.exists(sound_file):
+            self.sound = QSoundEffect()
+            self.sound.setSource(QUrl.fromLocalFile(sound_file))
+        else:
+            self.sound = None
+            print(f"警告: サウンドファイルが見つかりません: {sound_file}")
+
+        # タイマー
         self.timer = QTimer(self)
         self.timer.setInterval(100)
         self.timer.timeout.connect(self._update_timer)
-        self.remaining_tenths = 0
 
-        # シグナル接続
+        # シグナル
         self.start_btn.clicked.connect(self._on_start_stop)
+        self.reset_btn.clicked.connect(self._on_reset)
         self.settings_btn.clicked.connect(self._open_settings)
 
-        # 初期表示
         self._reset_display()
 
     def _reset_display(self):
-        m = self.default_minutes
-        self.time_label.setText(f"{m:02d}:00")
+        # 表示とボタンを初期状態に
+        minutes = self.default_rest if self.is_break else self.default_minutes
+        self.time_label.setText(f"{minutes:02d}:00")
+        self.progress.setRange(0, minutes * 60 * 10)
+        self.progress.setValue(self.progress.maximum())
+        self.start_btn.setText("開始")
+        self.sets_label.setText(f"セット数: {self.sets_completed}")
 
     def _open_settings(self):
-        dlg = TimerSettingDialog(self, self.default_minutes,
-                                 self.default_rest)
+        parent = self.window()
+        dlg = TimerSettingDialog(parent,
+                                 self.default_minutes,
+                                 self.default_rest,
+                                 False, False)
+        dlg.setModal(True)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            m, r = dlg.values()
-            # 新しい設定をメンバ変数にも、永続化先にも書き込む
+            m, r, _, _ = dlg.values()
             self.default_minutes = m
             self.default_rest = r
             self.settings.setValue("timer/minutes", m)
             self.settings.setValue("timer/rest", r)
+            self.is_break = False
+            self.remaining_tenths = 0
+            self.sets_completed = 0
             self._reset_display()
+        if parent:
+            parent.raise_()
 
     def _on_start_stop(self):
+        # タイマーの開始／停止
         if not self.timer.isActive():
-            # 最初は作業フェーズを開始
-            self.is_break = False
-            self._start_phase()
+            if self.remaining_tenths == 0:
+                self._start_phase()
             self.timer.start()
             self.start_btn.setText("停止")
         else:
-            # 停止したらリセット表示に戻す
             self.timer.stop()
-            self._reset_display()
+            self.start_btn.setText("再開")
+
+    def _on_reset(self):
+        # リセット: タイマー停止、表示とセット数リセット
+        if self.timer.isActive():
+            self.timer.stop()
+        self.is_break = False
+        self.remaining_tenths = 0
+        self.sets_completed = 0
+        self._reset_display()
 
     def _start_phase(self):
-        # フェーズに応じて remaining_tenths を設定
-        minutes = self.default_rest if self.is_break else self.default_minutes
-        self.remaining_tenths = minutes * 60 * 10
-        # ラベル色でフェーズを識別（任意）
-        color = "green" if self.is_break else "black"
+        # 作業 or 休憩フェーズ開始
+        duration = self.default_rest if self.is_break else self.default_minutes
+        self.total_tenths = duration * 60 * 10
+        self.remaining_tenths = self.total_tenths
+        color = "green" if self.is_break else "white"
         self.time_label.setStyleSheet(f"font-size:48px; color:{color};")
-        self.time_label.setText(f"{minutes:02d}:00")
+        self.progress.setRange(0, self.total_tenths)
+        self.progress.setValue(self.total_tenths)
+        self.start_btn.setText("停止")
 
     def _update_timer(self):
-        if self.remaining_tenths <= 0:
-            self.is_break = not self.is_break
-            self._start_phase()
-            # ボタンは停止にして次のフェーズに移る
-            self.start_btn.setText("停止")
+        # カウントダウン処理
+        if self.remaining_tenths > 0:
+            self.remaining_tenths -= 1
+            sec = self.remaining_tenths // 10
+            m, s = divmod(sec, 60)
+            self.time_label.setText(f"{m:02d}:{s:02d}")
+            self.progress.setValue(self.remaining_tenths)
             return
-        self.remaining_tenths -= 1
-        total_sec = self.remaining_tenths // 10
-        m, s = divmod(total_sec, 60)
-        self.time_label.setText(f"{m:02d}:{s:02d}")
+        # フェーズ終了時に音を鳴らす
+        if self.sound:
+            self.sound.play()
+        else:
+            QApplication.beep()
+        # 作業フェーズ完了時にセット数加算
+        if not self.is_break:
+            self.sets_completed += 1
+        # フェーズ切替
+        self.is_break = not self.is_break
+        self.timer.stop()
+        self._reset_display()
 
 
 class TasksWidget(QWidget):
@@ -167,7 +222,6 @@ class TasksWidget(QWidget):
         super().__init__()
         layout = QVBoxLayout(self)
 
-        # 入力欄＋追加ボタン
         self.input_line = QLineEdit()
         self.input_line.setPlaceholderText("タスクを入力…")
         self.add_btn = QPushButton("追加")
@@ -176,7 +230,6 @@ class TasksWidget(QWidget):
         input_layout.addWidget(self.add_btn)
         layout.addLayout(input_layout)
 
-        # タスクリスト
         self.task_list = QListWidget()
         layout.addWidget(self.task_list)
 
@@ -200,7 +253,6 @@ class MainWindow(QMainWindow):
         main_layout = QHBoxLayout(central)
         self.setCentralWidget(central)
 
-        # サイドバー
         self.nav = QListWidget()
         self.nav.setFixedWidth(120)
         for label in ["⌛️ Pomodoro", "📝 Tasks"]:
@@ -209,7 +261,6 @@ class MainWindow(QMainWindow):
             self.nav.addItem(item)
         main_layout.addWidget(self.nav)
 
-        # スタック
         self.stack = QStackedWidget()
         self.stack.addWidget(PomodoroWidget())
         self.stack.addWidget(TasksWidget())
@@ -220,9 +271,7 @@ class MainWindow(QMainWindow):
 
 
 if __name__ == "__main__":
-    # まずアプリケーション情報を設定
     app = QApplication(sys.argv)
-
     win = MainWindow()
     win.show()
     sys.exit(app.exec())

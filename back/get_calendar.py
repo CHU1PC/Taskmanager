@@ -85,7 +85,7 @@ class PomodoroWidget(QWidget):
         self.default_rest = int(self.settings.value("timer/rest", 5))
 
         # セット数管理
-        self.sets_completed = 0
+        self.sets_completed = int(self.settings.value("history/total_sets", 0))
 
         # フェーズ管理
         self.is_break = False
@@ -226,6 +226,7 @@ class PomodoroWidget(QWidget):
         self.is_break = False
         self.remaining_tenths = 0
         self.sets_completed = 0
+        self.settings.setValue("history/total_sets", 0)
         self._reset_display()
 
     def _start_phase(self):
@@ -260,6 +261,7 @@ class PomodoroWidget(QWidget):
         # 作業フェーズ完了時にセット数加算
         if not self.is_break:
             self.sets_completed += 1
+            self.settings.setValue("history/total_sets", self.sets_completed)
 
         # フェーズ切替
         self.is_break = not self.is_break

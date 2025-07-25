@@ -24,6 +24,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Time manager App")
+        self.setStyleSheet("background-color: #282828")
         self.resize(800, 500)
 
         central = QWidget()

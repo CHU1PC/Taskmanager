@@ -1,16 +1,22 @@
-import sys
 import os
+import sys
 
-from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QListWidget, QStackedWidget,
-    QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QLabel,
-    QLineEdit, QListWidgetItem, QFormLayout, QSpinBox, QDialog,
-    QDialogButtonBox, QCheckBox, QProgressBar, QFrame, QSlider, QGridLayout,
-    QSizePolicy
-)
-from PyQt6.QtCore import Qt, QTimer, QSettings, QUrl, QSize
+from PyQt6.QtWidgets import (QDialog, QFormLayout, QSpinBox, QCheckBox,
+                             QDialogButtonBox, QVBoxLayout, QHBoxLayout,
+                             QLabel, QSlider, QWidget, QGridLayout,
+                             QPushButton, QSizePolicy, QProgressBar, QFrame)
+from PyQt6.QtCore import Qt, QSettings, QTimer, QUrl
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
-from PyQt6.QtGui import QIcon
+
+
+def resource_path(rel_path: str) -> str:
+    """
+    PyInstaller のビルド方式に合わせて
+    リソースが展開されるベースパスを返す。
+    """
+    # onefile のときは _MEIPASS、一方 onedir や普通の実行時はスクリプトのある場所
+    base_path = getattr(sys, "_MEIPASS", os.path.dirname(__file__))
+    return os.path.join(base_path, rel_path)
 
 
 class TimerSettingDialog(QDialog):
@@ -278,20 +284,13 @@ class PomodoroWidget(QWidget):
         self.player = QMediaPlayer()
         self.audio_output = QAudioOutput()
         self.player.setAudioOutput(self.audio_output)
-        self.player.setSource(QUrl.fromLocalFile(os.path.join(
-            os.path.dirname(__file__), "beep1.mp3"
-        )))
 
-        audio_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-                                  "audio")
         saved_volume = float(self.settings.value("audio/volume", 0.5))
         self.audio_output.setVolume(saved_volume)
-        self.work_end_sound = QUrl.fromLocalFile(os.path.join(
-            audio_path, "beep2.mp3"
-        ))
-        self.break_end_sound = QUrl.fromLocalFile(os.path.join(
-            audio_path, "beep1.mp3"
-        ))
+        self.work_end_sound = \
+            QUrl.fromLocalFile(resource_path("audio/beep2.mp3"))
+        self.break_end_sound = \
+            QUrl.fromLocalFile(resource_path("audio/beep1.mp3"))
 
         self._reset_display()
 
@@ -403,77 +402,3 @@ class PomodoroWidget(QWidget):
         self.is_break = not self.is_break
         self.timer.stop()
         self._reset_display()
-
-
-class TasksWidget(QWidget):
-    def __init__(self):
-        super().__init__()
-        layout = QVBoxLayout(self)
-
-        self.input_line = QLineEdit()
-        self.input_line.setPlaceholderText("タスクを入力…")
-        self.add_btn = QPushButton("追加")
-        input_layout = QHBoxLayout()
-        input_layout.addWidget(self.input_line)
-        input_layout.addWidget(self.add_btn)
-        layout.addLayout(input_layout)
-
-        self.task_list = QListWidget()
-        layout.addWidget(self.task_list)
-
-        self.add_btn.clicked.connect(self.add_task)
-
-    def add_task(self):
-        text = self.input_line.text().strip()
-        if text:
-            item = QListWidgetItem(text)
-            self.task_list.addItem(item)
-            self.input_line.clear()
-
-
-class MainWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Time manager App")
-        self.resize(800, 500)
-
-        central = QWidget()
-        main_layout = QHBoxLayout(central)
-        self.setCentralWidget(central)
-
-        self.nav = QListWidget()
-        self.nav.setFixedWidth(50)
-        self.nav.setIconSize(QSize(24, 24))
-        self.nav.setStyleSheet("background-color: #414141")
-
-        img_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)), "img")
-        menu_items = [
-            (os.path.join(img_path, "pomodoro.png"), "ポモドーロ"),
-            (os.path.join(img_path, "tasks.png"), "タスク"),
-            (os.path.join(img_path, "matrix.png"), "時間管理のマトリクス")
-        ]
-
-        for icon_path, text in menu_items:
-            item = QListWidgetItem("")
-            item.setIcon(QIcon(icon_path))
-
-            item.setToolTip(text)
-
-            self.nav.addItem(item)
-        main_layout.addWidget(self.nav)
-
-        self.stack = QStackedWidget()
-        self.stack.addWidget(PomodoroWidget())
-        self.stack.addWidget(TasksWidget())
-        main_layout.addWidget(self.stack, stretch=1)
-
-        self.nav.currentRowChanged.connect(self.stack.setCurrentIndex)
-        self.nav.setCurrentRow(0)
-
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    win = MainWindow()
-    win.show()
-    sys.exit(app.exec())

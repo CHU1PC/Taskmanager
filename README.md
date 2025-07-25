@@ -14,7 +14,5 @@
 
 ### スキップボタンはポモドーロタイマーが進行中の時に押すことができて、押すとそのポモドーロや、休憩時間をスキップします。
 ## もしzipファイルが動かない場合は制作者に連絡するか、自身でローカルにcloneしていただき次のコマンドをカレントディレクトリをGUIにしてから実行してください
-## for mac
-## pyinstaller --onefile --add-data 'audio/*.mp3:audio' --add-data 'img/*:img' --hidden-import PyQt6 main.py
-## for windows
-## pyinstaller --onefile --add-data "audio/*.mp3:audio" --add-data "img/*:img" --hidden-import PyQt6 main.py
+## for mac        pyinstaller --onefile --add-data 'audio/*.mp3:audio' --add-data 'img/*:img' --hidden-import PyQt6 main.py
+## for windows        pyinstaller --onefile --add-data "audio/*.mp3:audio" --add-data "img/*:img" --hidden-import PyQt6 main.py

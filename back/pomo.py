@@ -78,6 +78,10 @@ class VolumeSettingDialog(QDialog):
 
         # 現在の音量を表示する
         self.volume_label = QLabel(f"音量: {initial_volume}%")
+        self.volume_label.setStyleSheet("""
+                background-color: #404040;
+                color: #ffffff;
+            """)
         self.volume_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.volume_label)
 

@@ -17,8 +17,11 @@
 
 ## もしzipファイルが動かない場合は制作者に連絡するか、自身でローカルにcloneしていただき次のコマンドをカレントディレクトリをGUIにしてから実行してください
 
-## for mac:
-pyinstaller --onefile --add-data 'audio/*.mp3:audio' --add-data 'img/*:img' --hidden-import PyQt6 main.py
-
-## for windows:
-pyinstaller --onefile --add-data "audio/*.mp3:audio" --add-data "img/*:img" --hidden-import PyQt6 main.py
+## for mac
+```bash
+pyinstaller --onefile --windowed --add-data 'audio/*.mp3:audio' --add-data 'img/*:img' --hidden-import PyQt6 main.py
+```
+## for windows
+```bash
+pyinstaller --onefile --windowed --add-data "audio/*.mp3:audio" --add-data "img/*:img" --hidden-import PyQt6 main.py
+```

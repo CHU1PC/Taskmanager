@@ -36,20 +36,34 @@ class TimerSettingDialog(QDialog):
         self.pomo_time.setRange(1, 99)
         self.pomo_time.setValue(minutes)
         self.pomo_time.setFixedSize(80, 20)
-        layout.addRow("ポモドーロの時間", self.pomo_time)
+        self.pomo_time.setStyleSheet("""
+                background-color: #404040;
+                color: #ffffff;
+            """)
+        pomodoro_time = QLabel("ポモドーロの時間")
+        pomodoro_time.setStyleSheet("color: #ffffff;")
+        layout.addRow(pomodoro_time, self.pomo_time)
 
         self.rest_time = QSpinBox()
         self.rest_time.setRange(1, 99)
         self.rest_time.setValue(rest)
         self.rest_time.setFixedSize(80, 20)
-        layout.addRow("休憩時間", self.rest_time)
+        self.rest_time.setStyleSheet("""
+                background-color: #404040;
+                color: #ffffff;
+            """)
+        rest_time = QLabel("休憩時間")
+        rest_time.setStyleSheet("color: #ffffff;")
+        layout.addRow(rest_time, self.rest_time)
 
         self.chk_auto_next = QCheckBox("次のポモドーロを自動で開始")
         self.chk_auto_next.setChecked(auto_next)
+        self.chk_auto_next.setStyleSheet("color: #ffffff;")
         layout.addRow(self.chk_auto_next)
 
         self.chk_auto_break = QCheckBox("休憩を自動開始")
         self.chk_auto_break.setChecked(auto_break)
+        self.chk_auto_break.setStyleSheet("color: #ffffff;")
         layout.addRow(self.chk_auto_break)
 
         buttons = QDialogButtonBox(
@@ -59,6 +73,7 @@ class TimerSettingDialog(QDialog):
         )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
+        buttons.setStyleSheet("color: #ffffff;")
         layout.addWidget(buttons)
 
     def values(self):
@@ -78,6 +93,10 @@ class VolumeSettingDialog(QDialog):
 
         # 現在の音量を表示する
         self.volume_label = QLabel(f"音量: {initial_volume}%")
+        self.volume_label.setStyleSheet("""
+                background-color: #404040;
+                color: #ffffff;
+            """)
         self.volume_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.volume_label)
 
@@ -139,6 +158,10 @@ class PomodoroWidget(QWidget):
         header = QHBoxLayout()
         self.settings_btn = QPushButton("…")
         self.settings_btn.setFixedSize(30, 30)
+        self.settings_btn.setStyleSheet("""
+                background-color: #404040;
+                color: #ffffff;
+            """)
         header.addWidget(self.settings_btn)
         header.addStretch()
         right_layout.addLayout(header, 0, 0)
@@ -147,6 +170,10 @@ class PomodoroWidget(QWidget):
         volume_header = QHBoxLayout()
         self.volume_setting = QPushButton("🔈")
         self.volume_setting.setFixedSize(30, 30)
+        self.volume_setting.setStyleSheet("""
+                background-color: #404040;
+                color: #ffffff;
+            """)
         volume_header.addStretch()
         volume_header.addWidget(self.volume_setting)
         left_layout.addLayout(volume_header)
@@ -184,7 +211,11 @@ class PomodoroWidget(QWidget):
         self.time_label = QLabel()
         self.time_label.setAlignment(Qt.AlignmentFlag.AlignHCenter |
                                      Qt.AlignmentFlag.AlignVCenter)
-        self.time_label.setStyleSheet("font-size: 48px;")
+        self.time_label.setStyleSheet("""
+                background-color: #404040;
+                color: #ffffff;
+                font-size: 48px;
+            """)
         left_layout.addStretch()
         left_layout.addWidget(self.time_label)
         left_layout.addStretch()

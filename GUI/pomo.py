@@ -9,7 +9,6 @@ from PyQt6.QtWidgets import (QDialog, QFormLayout, QSpinBox, QCheckBox,
                              )
 from PyQt6.QtCore import Qt, QSettings, QTimer, QUrl
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
-from PyQt6.QtGui import QIcon
 
 
 def resource_path(rel_path: str) -> str:
@@ -159,14 +158,14 @@ class PomodoroWidget(QWidget):
 
         # 通知用
         self.study_announce = \
-            QSystemTrayIcon(QIcon(resource_path("img/start_study.png")))
+            QSystemTrayIcon()
         self.study_announce.setToolTip("Time Manager APP")
-        self.study_announce.show()
+        self.study_announce.setVisible(True)
 
         self.rest_announce = \
-            QSystemTrayIcon(QIcon(resource_path("img/start_rest.png")))
+            QSystemTrayIcon()
         self.rest_announce.setToolTip("Time Manager APP")
-        self.rest_announce.show()
+        self.rest_announce.setVisible(True)
 
         # タイマー設定ボタン
         header = QHBoxLayout()
@@ -220,6 +219,52 @@ class PomodoroWidget(QWidget):
         self.total_time.setSizePolicy(QSizePolicy.Policy.Expanding,
                                       QSizePolicy.Policy.Fixed)
         right_layout.addWidget(self.total_time, 1, 1)
+
+        # 目標勉強時間
+        self.goal_minutes = int(self.settings.value("goal/minutes",
+                                                    self.default_minutes * 4))
+
+        self.goal_spin = QSpinBox(self)
+        self.goal_spin.setFixedSize(120, 30)
+        self.goal_spin.setRange(self.default_minutes,
+                                self.default_minutes * 99)
+        self.goal_spin.setSingleStep(self.default_minutes)
+        self.goal_spin.setValue(self.goal_minutes)
+        self.goal_spin.setSuffix(" 分")
+        self.goal_spin.valueChanged.connect(self._on_goal_changed)
+        self.goal_spin.setAlignment(Qt.AlignmentFlag.AlignHCenter |
+                                    Qt.AlignmentFlag.AlignVCenter)
+        self.goal_spin.setStyleSheet("""
+            QWidget {
+                background-color: #222;
+                color: #ddd;
+                border-radius: 8px;
+            }
+        """)
+        goal_time = QLabel("目標時間")
+        goal_time.setAlignment(Qt.AlignmentFlag.AlignHCenter |
+                               Qt.AlignmentFlag.AlignVCenter)
+        goal_time.setStyleSheet("""
+            QWidget {
+                background-color: #222;
+                color: #ddd;
+                border-radius: 8px;
+            }
+        """)
+        right_layout.addWidget(goal_time, 2, 0)
+        right_layout.addWidget(self.goal_spin, 2, 1)
+
+        # 残り時間／残りポモドーロ数ラベル
+        self.remain_time_label = QLabel()
+        self.remain_count_label = QLabel()
+        self.remain_time_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.remain_count_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        right_layout.addWidget(self.remain_time_label, 3, 0)
+        right_layout.addWidget(self.remain_count_label, 3, 1)
+
+        # 最後に…
+        self._update_remaining()
 
         # 時間表示
         self.time_label = QLabel()
@@ -354,6 +399,7 @@ class PomodoroWidget(QWidget):
         total_hours = (self.sets_completed * self.default_minutes) // 60
         total_minutes = (self.sets_completed * self.default_minutes) % 60
         self.total_time.setText(f"総勉強時間: \n{total_hours}時間{total_minutes}分")
+        self._update_remaining()
 
     def _open_volume_settings(self):
         current_volume_percent = int(self.audio_output.volume() * 100)
@@ -387,6 +433,39 @@ class PomodoroWidget(QWidget):
             self._reset_display()
         if parent:
             parent.raise_()
+
+    def _on_goal_changed(self, v):
+        self.goal_minutes = v
+        self.settings.setValue("goal/minutes", v)
+        self._update_remaining()
+
+    def _update_remaining(self):
+        done = self.sets_completed * self.default_minutes
+        remain = max(0, self.goal_minutes - done)
+
+        if self.default_minutes > 0:
+            need = (remain + self.default_minutes - 1) // self.default_minutes
+        else:
+            need = 0
+
+        # 表示更新
+        h, m = divmod(remain, 60)
+        self.remain_time_label.setText(f"残り時間:\n{h}時間{m}分")
+        self.remain_time_label.setStyleSheet("""
+            QWidget {
+                background-color: #222;
+                color: #ddd;
+                border-radius: 8px;
+            }
+        """)
+        self.remain_count_label.setText(f"残りポモドーロ数:\n{need}回")
+        self.remain_count_label.setStyleSheet("""
+            QWidget {
+                background-color: #222;
+                color: #ddd;
+                border-radius: 8px;
+            }
+        """)
 
     def _on_start_stop(self):
         # タイマーの開始／停止

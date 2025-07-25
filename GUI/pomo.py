@@ -89,43 +89,65 @@ class TimerSettingDialog(QDialog):
 
 
 class VolumeSettingDialog(QDialog):
-    def __init__(self, parent=None, initial_volume=50):
+    def __init__(self, parent=None,
+                 initial_bgm_volume=20, initial_sfx_volume=50):
         super().__init__(parent)
 
         layout = QVBoxLayout(self)
 
-        # 現在の音量を表示する
-        self.volume_label = QLabel(f"音量: {initial_volume}%")
-        self.volume_label.setStyleSheet("""
+        # 効果音用
+        self.sfx_volume_label = QLabel(f"効果音の音量: {initial_sfx_volume}%")
+        self.sfx_volume_label.setStyleSheet("""
                 background-color: #404040;
                 color: #ffffff;
             """)
-        self.volume_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.volume_label)
+        self.sfx_volume_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.sfx_volume_label)
 
         # 音量調整スライダー
-        self.slider = QSlider(Qt.Orientation.Horizontal)
-        self.slider.setRange(0, 100)
-        self.slider.setValue(initial_volume)
-        layout.addWidget(self.slider)
+        self.sfx_slider = QSlider(Qt.Orientation.Horizontal)
+        self.sfx_slider.setRange(0, 100)
+        self.sfx_slider.setValue(initial_sfx_volume)
+        layout.addWidget(self.sfx_slider)
+
+        # BGM用
+        self.bgm_volume_label = QLabel(f"BGMの音量: {initial_bgm_volume}%")
+        self.bgm_volume_label.setStyleSheet("""
+                background-color: #404040;
+                color: #ffffff;
+            """)
+        self.bgm_volume_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.bgm_volume_label)
+
+        # BGM音量調整スライダー
+        self.bgm_slider = QSlider(Qt.Orientation.Horizontal)
+        self.bgm_slider.setRange(0, 100)
+        self.bgm_slider.setValue(initial_bgm_volume)
+        layout.addWidget(self.bgm_slider)
 
         # スライダーの値が変更されたらラベルを更新
-        self.slider.valueChanged.connect(self.update_label)
+        self.sfx_slider.valueChanged.connect(
+            lambda value: self.sfx_volume_label.setText(f"効果音の音量: {value}%")
+        )
+        self.bgm_slider.valueChanged.connect(
+            lambda value: self.bgm_volume_label.setText(f"BGMの音量: {value}%")
+        )
 
         # OK/Cancelボタン
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok |
             QDialogButtonBox.StandardButton.Cancel
         )
+        buttons.setStyleSheet("color: #ffffff;")
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
     def update_label(self, value):
-        self.volume_label.setText(f"音量: {value}%")
+        self.sfx_volume_label.setText(f"音量: {value}%")
 
-    def volume(self):
-        return self.slider.value()
+    def values(self):
+        return (self.sfx_slider.value(), self.bgm_slider.value())
 
 
 class PomodoroWidget(QWidget):
@@ -271,7 +293,6 @@ class PomodoroWidget(QWidget):
         self.time_label.setAlignment(Qt.AlignmentFlag.AlignHCenter |
                                      Qt.AlignmentFlag.AlignVCenter)
         self.time_label.setStyleSheet("""
-                background-color: #404040;
                 color: #ffffff;
                 font-size: 48px;
             """)
@@ -370,7 +391,7 @@ class PomodoroWidget(QWidget):
         self.settings_btn.clicked.connect(self._open_settings)
         self.volume_setting.clicked.connect(self._open_volume_settings)
 
-        # 音声再生用
+        # 終了音声
         self.player = QMediaPlayer()
         self.audio_output = QAudioOutput()
         self.player.setAudioOutput(self.audio_output)
@@ -382,11 +403,23 @@ class PomodoroWidget(QWidget):
         self.break_end_sound = \
             QUrl.fromLocalFile(resource_path("audio/beep1.mp3"))
 
+        # 勉強中音声
+        self.bgm_player = QMediaPlayer()
+        self.bgm_audio_output = QAudioOutput()
+        self.bgm_player.setAudioOutput(self.bgm_audio_output)
+        self.bgm_player.setLoops(QMediaPlayer.Loops.Infinite)
+
+        saved_bgm_volume = float(self.settings.value("audio/bgm_volume", 0.2))
+        self.bgm_audio_output.setVolume(saved_bgm_volume)
+        self.bgm_player.setSource(
+            QUrl.fromLocalFile(resource_path("audio/clock.mp3")))
+
         self._reset_display()
 
     def _skip_timer(self):
         # 任意でタイマーの時間を0にする
         self.remaining_tenths = 0
+        self.bgm_player.stop()
 
     def _reset_display(self):
         # 表示とボタンを初期状態に
@@ -402,17 +435,25 @@ class PomodoroWidget(QWidget):
         self._update_remaining()
 
     def _open_volume_settings(self):
-        current_volume_percent = int(self.audio_output.volume() * 100)
+        current_sfx_volume_per = int(self.audio_output.volume() * 100)
+        current_bgm_volume_per = int(self.bgm_audio_output.volume() * 100)
 
-        dlg = VolumeSettingDialog(self, initial_volume=current_volume_percent)
+        dlg = VolumeSettingDialog(self,
+                                  initial_bgm_volume=current_bgm_volume_per,
+                                  initial_sfx_volume=current_sfx_volume_per)
 
         if dlg.exec() == QDialog.DialogCode.Accepted:
             # ダイアログから新しい音量を取得
-            new_volume_precent = dlg.volume()
-            new_volume_float = new_volume_precent / 100.0
+            new_sfx_volume_per, new_bgm_volume_per = dlg.values()
 
-            self.audio_output.setVolume(new_volume_float)
-            self.settings.setValue("audio/volume", new_volume_float)
+            new_sfx_volume_float = new_sfx_volume_per / 100.0
+            new_bgm_volume_float = new_bgm_volume_per / 100.0
+
+            self.audio_output.setVolume(new_sfx_volume_float)
+            self.bgm_audio_output.setVolume(new_bgm_volume_float)
+
+            self.settings.setValue("audio/volume", new_sfx_volume_float)
+            self.settings.setValue("audio/bgm_volume", new_bgm_volume_float)
 
     def _open_settings(self):
         parent = self.window()
@@ -474,14 +515,21 @@ class PomodoroWidget(QWidget):
                 self._start_phase()
             self.timer.start()
             self.start_btn.setText("停止")
+
+            if not self.is_break:
+                self.bgm_player.play()
+
         else:
             self.timer.stop()
             self.start_btn.setText("再開")
+
+            self.bgm_player.pause()
 
     def _on_reset(self):
         # リセット: タイマー停止、表示とセット数リセット
         if self.timer.isActive():
             self.timer.stop()
+        self.bgm_player.stop()
         self.is_break = False
         self.remaining_tenths = 0
         self.sets_completed = 0
@@ -508,6 +556,8 @@ class PomodoroWidget(QWidget):
             self.time_label.setText(f"{m:02d}:{s:02d}")
             self.progress.setValue(self.remaining_tenths)
             return
+
+        self.bgm_player.stop()
 
         # フェーズ終了時に音を鳴らす
         if self.is_break:

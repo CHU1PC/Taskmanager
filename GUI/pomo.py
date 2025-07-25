@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import (QDialog, QFormLayout, QSpinBox, QCheckBox,
                              )
 from PyQt6.QtCore import Qt, QSettings, QTimer, QUrl
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
+from PyQt6.QtGui import QIcon
 
 
 def resource_path(rel_path: str) -> str:
@@ -158,12 +159,12 @@ class PomodoroWidget(QWidget):
 
         # 通知用
         self.study_announce = \
-            QSystemTrayIcon()
+            QSystemTrayIcon(QIcon(resource_path("img/start_study")), self)
         self.study_announce.setToolTip("Time Manager APP")
         self.study_announce.setVisible(True)
 
         self.rest_announce = \
-            QSystemTrayIcon()
+            QSystemTrayIcon(QIcon(resource_path("img/start_rest")), self)
         self.rest_announce.setToolTip("Time Manager APP")
         self.rest_announce.setVisible(True)
 
@@ -206,7 +207,7 @@ class PomodoroWidget(QWidget):
         right_layout.addWidget(self.sets_label, 1, 0)
 
         # 総勉強時間の表示
-        self.total_time = QLabel("")
+        self.total_time = QLabel()
         self.total_time.setAlignment(Qt.AlignmentFlag.AlignHCenter |
                                      Qt.AlignmentFlag.AlignVCenter)
         self.total_time.setStyleSheet("""
@@ -238,7 +239,6 @@ class PomodoroWidget(QWidget):
             QWidget {
                 background-color: #222;
                 color: #ddd;
-                border-radius: 8px;
             }
         """)
         goal_time = QLabel("目標時間")

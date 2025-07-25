@@ -4,9 +4,12 @@ import sys
 from PyQt6.QtWidgets import (QDialog, QFormLayout, QSpinBox, QCheckBox,
                              QDialogButtonBox, QVBoxLayout, QHBoxLayout,
                              QLabel, QSlider, QWidget, QGridLayout,
-                             QPushButton, QSizePolicy, QProgressBar, QFrame)
+                             QPushButton, QSizePolicy, QProgressBar, QFrame,
+                             QSystemTrayIcon
+                             )
 from PyQt6.QtCore import Qt, QSettings, QTimer, QUrl
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
+from PyQt6.QtGui import QIcon
 
 
 def resource_path(rel_path: str) -> str:
@@ -153,6 +156,17 @@ class PomodoroWidget(QWidget):
         self.is_break = False
         self.remaining_tenths = 0
         self.total_tenths = 0
+
+        # 通知用
+        self.study_announce = \
+            QSystemTrayIcon(QIcon(resource_path("img/start_study.png")))
+        self.study_announce.setToolTip("Time Manager APP")
+        self.study_announce.show()
+
+        self.rest_announce = \
+            QSystemTrayIcon(QIcon(resource_path("img/start_rest.png")))
+        self.rest_announce.setToolTip("Time Manager APP")
+        self.rest_announce.show()
 
         # タイマー設定ボタン
         header = QHBoxLayout()
@@ -419,8 +433,20 @@ class PomodoroWidget(QWidget):
         # フェーズ終了時に音を鳴らす
         if self.is_break:
             self.player.setSource(self.break_end_sound)
+            self.study_announce.showMessage(
+                "ポモドーロ完了",
+                "作業時間が終了しました! お疲れ様です",
+                QSystemTrayIcon.MessageIcon.Information,
+                5000
+            )
         else:
             self.player.setSource(self.work_end_sound)
+            self.study_announce.showMessage(
+                "休憩終了",
+                "休憩時間が終了しました! がんばりましょう!!!!",
+                QSystemTrayIcon.MessageIcon.Information,
+                5000
+            )
 
         self.player.play()
 

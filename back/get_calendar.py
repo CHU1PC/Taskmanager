@@ -5,7 +5,8 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QStackedWidget,
     QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QLabel,
     QLineEdit, QListWidgetItem, QFormLayout, QSpinBox, QDialog,
-    QDialogButtonBox, QCheckBox, QProgressBar, QFrame, QSlider
+    QDialogButtonBox, QCheckBox, QProgressBar, QFrame, QSlider, QGridLayout,
+    QSizePolicy
 )
 from PyQt6.QtCore import Qt, QTimer, QSettings, QUrl, QSize
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
@@ -112,7 +113,7 @@ class PomodoroWidget(QWidget):
         right_panel = QWidget()
 
         left_layout = QVBoxLayout(left_panel)
-        right_layout = QVBoxLayout(right_panel)
+        right_layout = QGridLayout(right_panel)
         right_layout.setAlignment(Qt.AlignmentFlag.AlignTop)  # 上寄せ
 
         # 設定読み込み
@@ -134,7 +135,7 @@ class PomodoroWidget(QWidget):
         self.settings_btn.setFixedSize(30, 30)
         header.addWidget(self.settings_btn)
         header.addStretch()
-        right_layout.addLayout(header)
+        right_layout.addLayout(header, 0, 0)
 
         # 音量設定ボタン
         volume_header = QHBoxLayout()
@@ -145,20 +146,38 @@ class PomodoroWidget(QWidget):
         left_layout.addLayout(volume_header)
 
         # セット数表示
-        self.sets_label = QLabel("セット数: 0")
+        self.sets_label = QLabel("")
         self.sets_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-        self.sets_label.setStyleSheet("font-size: 24px;")
-        right_layout.addWidget(self.sets_label)
+        self.sets_label.setStyleSheet("""
+            QWidget {
+                background-color: #222;
+                color: #ddd;
+                border-radius: 8px;
+            }
+        """)
+        self.sets_label.setSizePolicy(QSizePolicy.Policy.Expanding,
+                                      QSizePolicy.Policy.Fixed)
+        right_layout.addWidget(self.sets_label, 1, 0)
 
         # 総勉強時間の表示
-        self.total_time = QLabel("総勉強時間: 0時間00分")
-        self.total_time.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.total_time.setStyleSheet("font-size: 24px;")
-        right_layout.addWidget(self.total_time)
+        self.total_time = QLabel("")
+        self.total_time.setAlignment(Qt.AlignmentFlag.AlignHCenter |
+                                     Qt.AlignmentFlag.AlignVCenter)
+        self.total_time.setStyleSheet("""
+            QWidget {
+                background-color: #222;
+                color: #ddd;
+                border-radius: 8px;
+            }
+        """)
+        self.total_time.setSizePolicy(QSizePolicy.Policy.Expanding,
+                                      QSizePolicy.Policy.Fixed)
+        right_layout.addWidget(self.total_time, 1, 1)
 
         # 時間表示
         self.time_label = QLabel()
-        self.time_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        self.time_label.setAlignment(Qt.AlignmentFlag.AlignHCenter |
+                                     Qt.AlignmentFlag.AlignVCenter)
         self.time_label.setStyleSheet("font-size: 48px;")
         left_layout.addStretch()
         left_layout.addWidget(self.time_label)
@@ -173,12 +192,60 @@ class PomodoroWidget(QWidget):
         # ボタン: 開始/停止 と リセットとスキップ
         btn_layout = QHBoxLayout()
         self.start_btn = QPushButton("開始")
+        self.start_btn.setStyleSheet("""
+            QPushButton {
+                font-size: 24px;
+                background-color: #222;      /* ボタン背景色 */
+                color: #fff;                 /* 文字色 */
+                border: none;                /* デフォルトの枠線を消す */
+                border-radius: 12px;         /* 角の丸み(px) */
+                padding: 8px 16px;           /* 上下左右の余白 */
+            }
+            QPushButton:hover {
+                background-color: #007DFF;
+            }
+            QPushButton:pressed {
+                background-color: #333;
+            }
+        """)
         btn_layout.addWidget(self.start_btn)
 
         self.reset_btn = QPushButton("リセット")
+        self.reset_btn.setStyleSheet("""
+            QPushButton {
+                font-size: 24px;
+                background-color: #222;      /* ボタン背景色 */
+                color: #fff;                 /* 文字色 */
+                border: none;                /* デフォルトの枠線を消す */
+                border-radius: 12px;         /* 角の丸み(px) */
+                padding: 8px 16px;           /* 上下左右の余白 */
+            }
+            QPushButton:hover {
+                background-color: #007DFF;
+            }
+            QPushButton:pressed {
+                background-color: #333;
+            }
+        """)
         btn_layout.addWidget(self.reset_btn)
 
         self.skip_btn = QPushButton("スキップ")
+        self.skip_btn.setStyleSheet("""
+            QPushButton {
+                font-size: 24px;
+                background-color: #222;      /* ボタン背景色 */
+                color: #fff;                 /* 文字色 */
+                border: none;                /* デフォルトの枠線を消す */
+                border-radius: 12px;         /* 角の丸み(px) */
+                padding: 8px 16px;           /* 上下左右の余白 */
+            }
+            QPushButton:hover {
+                background-color: #007DFF;
+            }
+            QPushButton:pressed {
+                background-color: #333;
+            }
+        """)
         btn_layout.addWidget(self.skip_btn)
         left_layout.addLayout(btn_layout)
 
@@ -239,10 +306,10 @@ class PomodoroWidget(QWidget):
         self.progress.setRange(0, minutes * 60 * 10)
         self.progress.setValue(self.progress.maximum())
         self.start_btn.setText("開始")
-        self.sets_label.setText(f"セット数: {self.sets_completed}")
+        self.sets_label.setText(f"セット数: \n{self.sets_completed}")
         total_hours = (self.sets_completed * self.default_minutes) // 60
         total_minutes = (self.sets_completed * self.default_minutes) % 60
-        self.total_time.setText(f"総勉強時間: {total_hours}時間{total_minutes}分")
+        self.total_time.setText(f"総勉強時間: \n{total_hours}時間{total_minutes}分")
 
     def _open_volume_settings(self):
         current_volume_percent = int(self.audio_output.volume() * 100)

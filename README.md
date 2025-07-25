@@ -7,7 +7,7 @@
 <img src="readme_img/volume_setting.png" alt="音量調整ボタンの画像" style="width: 50%; height:auto;"/>
 
 ### ポモドーロの時間と休憩時間の設定ボタン
-<img src="readme_img/volume_setting.png" alt="ポモドーロの設定ボタンの画像" style="width: 50%; height:auto;"/>
+<img src="readme_img/pomo_setting.png" alt="ポモドーロの設定ボタンの画像" style="width: 50%; height:auto;"/>
 
 ### 開始ボタンを押すとポモドーロタイマーが開始し、停止ボタンを押すとストップします、リセットボタンを押すと、累計勉強時間、累計ポモドーロ回数を0にリセットします。
 <img src="readme_img/pomo_start.png" alt="ポモドーロの設定ボタンの画像" style="width: 50%; height:auto;"/>

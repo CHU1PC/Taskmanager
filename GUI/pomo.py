@@ -513,16 +513,16 @@ class PomodoroWidget(QWidget):
         if self.is_break:
             self.player.setSource(self.break_end_sound)
             self.study_announce.showMessage(
-                "ポモドーロ完了",
-                "作業時間が終了しました! お疲れ様です",
+                "休憩終了",
+                "休憩時間が終了しました! がんばりましょう!!!!",
                 QSystemTrayIcon.MessageIcon.Information,
                 5000
             )
         else:
             self.player.setSource(self.work_end_sound)
             self.study_announce.showMessage(
-                "休憩終了",
-                "休憩時間が終了しました! がんばりましょう!!!!",
+                "ポモドーロ完了",
+                "作業時間が終了しました! お疲れ様です",
                 QSystemTrayIcon.MessageIcon.Information,
                 5000
             )

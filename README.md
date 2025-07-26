@@ -1,7 +1,7 @@
 # これはポモドーロタイマーを使ったtask manager applicationです。
 
 ## 使い方
-### releaseから最新のveresionのzipファイルをダウンロードしてください
+### releaseから最新のversionのzipファイルをダウンロードしてください
 ### ダウンロードしたらそのzipファイルを解凍していただき, Windows pcであればmain_Windowsを開き、macOS pcであればmain_macOSを開いてください
 ### ポモドーロの項目には、音量調整ボタン
 <img src="readme_img/volume_setting.png" alt="音量調整ボタンの画像" style="width: 50%; height:auto;"/>

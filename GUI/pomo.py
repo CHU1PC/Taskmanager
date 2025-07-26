@@ -170,6 +170,10 @@ class PomodoroWidget(QWidget):
         self.settings = QSettings("CHU1PC", "PomodoroApp")
         self.default_minutes = int(self.settings.value("timer/minutes", 25))
         self.default_rest = int(self.settings.value("timer/rest", 5))
+        self.auto_next = \
+            self.settings.value("timer/auto_next", False, type=bool)
+        self.auto_break = \
+            self.settings.value("timer/auto_break", False, type=bool)
 
         # セット数管理
         self.sets_completed = int(self.settings.value("history/total_sets", 0))
@@ -461,17 +465,26 @@ class PomodoroWidget(QWidget):
         dlg = TimerSettingDialog(parent,
                                  self.default_minutes,
                                  self.default_rest,
-                                 False, False)
+                                 self.auto_next,
+                                 self.auto_break)
         dlg.setModal(True)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            m, r, _, _ = dlg.values()
+            m, r, auto_next, auto_break = dlg.values()
             self.default_minutes = m
             self.default_rest = r
+            self.auto_next = auto_next
+            self.auto_break = auto_break
+
+            # QSettingsにも書き込む
             self.settings.setValue("timer/minutes", m)
             self.settings.setValue("timer/rest", r)
-            self.is_break = False
-            self.remaining_tenths = 0
-            self.sets_completed = 0
+            self.settings.setValue("timer/auto_next", auto_next)
+            self.settings.setValue("timer/auto_break", auto_break)
+
+            # リセットして画面再描画
+            # self.is_break = False
+            # self.remaining_tenths = 0
+            # self.sets_completed = 0
             self._reset_display()
         if parent:
             parent.raise_()
@@ -589,3 +602,10 @@ class PomodoroWidget(QWidget):
         self.is_break = not self.is_break
         self.timer.stop()
         self._reset_display()
+
+        if self.is_break and self.auto_break:
+            self._start_phase()
+            self.timer.start()
+        elif not self.is_break and self.auto_next:
+            self._start_phase()
+            self.timer.start()

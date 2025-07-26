@@ -27,11 +27,11 @@ class MainWindow(QMainWindow):
         self.setStyleSheet("background-color: #282828")
         self.resize(800, 500)
 
-        central = QWidget()
+        central = QWidget(self)
         main_layout = QHBoxLayout(central)
         self.setCentralWidget(central)
 
-        self.nav = QListWidget()
+        self.nav = QListWidget(self)
         self.nav.setFixedWidth(50)
         self.nav.setIconSize(QSize(24, 24))
         self.nav.setStyleSheet("background-color: #414141")

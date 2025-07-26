@@ -371,7 +371,8 @@ class PomodoroWidget(QWidget):
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.VLine)
         separator.setFrameShadow(QFrame.Shadow.Sunken)
-        separator.setLineWidth(1)
+        separator.setLineWidth(3)
+        separator.setStyleSheet("background-color: #464646;")
 
         # --- メインレイアウトに全てを追加 ---
         main_layout.addWidget(left_panel, stretch=3)

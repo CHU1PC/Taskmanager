@@ -121,6 +121,7 @@ class TasksWidget(QWidget):
         # タスク入力欄
         self.input_line = QLineEdit(self)
         self.input_line.setPlaceholderText("タスクを入力…")
+        self.input_line.setStyleSheet("color: #ffffff;")
 
         # 追加ボタン
         self.add_btn = QPushButton("追加")
@@ -144,6 +145,7 @@ class TasksWidget(QWidget):
         # 詳細エディタ
         self.detail_edit = QTextEdit(self)
         self.detail_edit.setPlaceholderText("タスクを選択すると、ここで詳細を編集できます")
+        self.detail_edit.setStyleSheet("color: #ffffff;")
 
         self.task_list.currentItemChanged.connect(self.on_item_selected)
         self.detail_edit.textChanged.connect(self.on_detail_changed)

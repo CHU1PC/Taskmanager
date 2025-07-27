@@ -350,6 +350,13 @@ class PomodoroWidget(QWidget):
         # 残り時間
         self.remain_time_label = QLabel()
         self.remain_time_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.remain_time_label.setStyleSheet("""
+            QWidget {
+                background-color: #222;
+                color: #ddd;
+                border-radius: 8px;
+            }
+        """)
 
         # 残りポモドーロ数
         self.remain_count_label = QLabel()
@@ -390,6 +397,7 @@ class PomodoroWidget(QWidget):
         """)
 
         self.task_combo.addItem("タスクなし")
+        self.task_combo.setStyleSheet("color: #ffffff;")
         self.task_combo.currentTextChanged.connect(self._on_task_changed)
 
         # タスク更新ボタン

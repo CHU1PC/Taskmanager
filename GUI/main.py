@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QListWidget,
 from PyQt6.QtCore import QSize
 from PyQt6.QtGui import QIcon
 
-from pomo import PomodoroWidget
+from pomodoro import PomodoroWidget
 from task import TasksWidget
 
 

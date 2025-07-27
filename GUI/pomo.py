@@ -29,12 +29,20 @@ class TimerSettingDialog(QDialog):
         self.setWindowTitle("タイマーの設定")
         self.resize(320, 260)
 
+        # ラベルと入力フォームのペアでWidgetを配置するクラス
         layout = QFormLayout(self)
-        layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+
+        # 入力フォームは中央寄せ
         layout.setFormAlignment(Qt.AlignmentFlag.AlignCenter)
+        # 水平方向に20だけ間隔をあけて, 垂直方向に15だけ開ける
         layout.setHorizontalSpacing(20)
         layout.setVerticalSpacing(15)
 
+        # ---------------------------------------------------------------------
+        # ポモドーロの時間の設定を行う
+        # ---------------------------------------------------------------------
+
+        # 整数値の入力や、上下の矢印ボタンで値を増減することもできる
         self.pomo_time = QSpinBox()
         self.pomo_time.setRange(1, 99)
         self.pomo_time.setValue(minutes)
@@ -47,6 +55,9 @@ class TimerSettingDialog(QDialog):
         pomodoro_time.setStyleSheet("color: #ffffff;")
         layout.addRow(pomodoro_time, self.pomo_time)
 
+        # ---------------------------------------------------------------------
+        # 休憩時間の設定を行う
+        # ---------------------------------------------------------------------
         self.rest_time = QSpinBox()
         self.rest_time.setRange(1, 99)
         self.rest_time.setValue(rest)
@@ -59,6 +70,10 @@ class TimerSettingDialog(QDialog):
         rest_time.setStyleSheet("color: #ffffff;")
         layout.addRow(rest_time, self.rest_time)
 
+        # ---------------------------------------------------------------------
+        # ポモドーロと休憩時間の自動開始の有無
+        # ---------------------------------------------------------------------
+
         self.chk_auto_next = QCheckBox("次のポモドーロを自動で開始")
         self.chk_auto_next.setChecked(auto_next)
         self.chk_auto_next.setStyleSheet("color: #ffffff;")
@@ -69,6 +84,9 @@ class TimerSettingDialog(QDialog):
         self.chk_auto_break.setStyleSheet("color: #ffffff;")
         layout.addRow(self.chk_auto_break)
 
+        # ---------------------------------------------------------------------
+        # OK, Cancelボタンの設定
+        # ---------------------------------------------------------------------
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok |
             QDialogButtonBox.StandardButton.Cancel,
@@ -80,6 +98,14 @@ class TimerSettingDialog(QDialog):
         layout.addWidget(buttons)
 
     def values(self):
+        """Timerで設定した値を返す
+
+        Returns:
+            self.pomo_time.value() (int): ポモドーロの時間を返す
+            self.rest_time.value() (int): 休憩時間を返す
+            self.chk_auto_next.isChecked() (bool): ポモドーロを自動開始の有無
+            self.chk_auto_break.isChecked() (bool): 休憩の自動開始の有無
+        """
         return (
             self.pomo_time.value(),
             self.rest_time.value(),
@@ -93,9 +119,12 @@ class VolumeSettingDialog(QDialog):
                  initial_bgm_volume=20, initial_sfx_volume=50):
         super().__init__(parent)
 
+        # ウィジェットを縦に並べる
         layout = QVBoxLayout(self)
 
+        # ---------------------------------------------------------------------
         # 効果音用
+        # ---------------------------------------------------------------------
         self.sfx_volume_label = QLabel(f"効果音の音量: {initial_sfx_volume}%")
         self.sfx_volume_label.setStyleSheet("""
                 background-color: #404040;
@@ -104,13 +133,15 @@ class VolumeSettingDialog(QDialog):
         self.sfx_volume_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.sfx_volume_label)
 
-        # 音量調整スライダー
+        # 効果音用音量調整スライダー
         self.sfx_slider = QSlider(Qt.Orientation.Horizontal)
         self.sfx_slider.setRange(0, 100)
         self.sfx_slider.setValue(initial_sfx_volume)
         layout.addWidget(self.sfx_slider)
 
+        # ---------------------------------------------------------------------
         # BGM用
+        # ---------------------------------------------------------------------
         self.bgm_volume_label = QLabel(f"BGMの音量: {initial_bgm_volume}%")
         self.bgm_volume_label.setStyleSheet("""
                 background-color: #404040;
@@ -125,7 +156,9 @@ class VolumeSettingDialog(QDialog):
         self.bgm_slider.setValue(initial_bgm_volume)
         layout.addWidget(self.bgm_slider)
 
+        # ---------------------------------------------------------------------
         # スライダーの値が変更されたらラベルを更新
+        # ---------------------------------------------------------------------
         self.sfx_slider.valueChanged.connect(
             lambda value: self.sfx_volume_label.setText(f"効果音の音量: {value}%")
         )
@@ -133,7 +166,9 @@ class VolumeSettingDialog(QDialog):
             lambda value: self.bgm_volume_label.setText(f"BGMの音量: {value}%")
         )
 
+        # ---------------------------------------------------------------------
         # OK/Cancelボタン
+        # ---------------------------------------------------------------------
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok |
             QDialogButtonBox.StandardButton.Cancel
@@ -143,10 +178,13 @@ class VolumeSettingDialog(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
-    def update_label(self, value):
-        self.sfx_volume_label.setText(f"音量: {value}%")
-
     def values(self):
+        """効果音の音量とBGMの音量を返す
+
+        Returns:
+            self.sfx_slider.value() (int): 効果音の音量
+            self.bgm_slider.value() (int): BGMの音量
+        """
         return (self.sfx_slider.value(), self.bgm_slider.value())
 
 
@@ -154,36 +192,57 @@ class PomodoroWidget(QWidget):
     def __init__(self):
         super().__init__()
 
-        # --- 1.メインの水平レイアウトを作成 ---
+        # ウィジェットを水平方向に並べる
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
-        # --- 2.左と右に分ける ---
+        # 左と右に分ける
         left_panel = QWidget()
         right_panel = QWidget()
 
+        # 左のlayoutは垂直方向にWidgetを並べて
+        # 右のlayoutは行列の座標で配置を指定できるlayout
         left_layout = QVBoxLayout(left_panel)
         right_layout = QGridLayout(right_panel)
         right_layout.setAlignment(Qt.AlignmentFlag.AlignTop)  # 上寄せ
 
+        # ---------------------------------------------------------------------
         # 設定読み込み
+        # ---------------------------------------------------------------------
+        # QsettingsでCHU1PC/PomodoroAppに保存する
         self.settings = QSettings("CHU1PC", "PomodoroApp")
+
+        # 1ポモドーロの時間を読み込む
         self.default_minutes = int(self.settings.value("timer/minutes", 25))
+
+        # 休憩時間を読み込む
         self.default_rest = int(self.settings.value("timer/rest", 5))
+
+        # ポモドーロの自動開始の有無を読み込む
         self.auto_next = \
             self.settings.value("timer/auto_next", False, type=bool)
+
+        # 休憩時間の自動開始の有無を読み込む
         self.auto_break = \
             self.settings.value("timer/auto_break", False, type=bool)
 
-        # セット数管理
+        # 行ってセット数(ポモドーロの数)を読み込む
         self.sets_completed = int(self.settings.value("history/total_sets", 0))
 
+        # 目標時間を読み込む
+        self.goal_minutes = int(self.settings.value("goal/minutes",
+                                                    self.default_minutes * 4))
+
+        # ---------------------------------------------------------------------
         # フェーズ管理
-        self.is_break = False
+        # ---------------------------------------------------------------------
+        self.is_break = False  # Falseの時は勉強時間
         self.remaining_tenths = 0
         self.total_tenths = 0
 
+        # ---------------------------------------------------------------------
         # 通知用
+        # ---------------------------------------------------------------------
         self.study_announce = \
             QSystemTrayIcon(QIcon(resource_path("img/start_study")), self)
         self.study_announce.setToolTip("Time Manager APP")
@@ -194,7 +253,11 @@ class PomodoroWidget(QWidget):
         self.rest_announce.setToolTip("Time Manager APP")
         self.rest_announce.setVisible(True)
 
+        # ---------------------------------------------------------------------
         # タイマー設定ボタン
+        # ---------------------------------------------------------------------
+
+        # 水平方向にWidgetを並べる
         header = QHBoxLayout()
         self.settings_btn = QPushButton("…")
         self.settings_btn.setFixedSize(30, 30)
@@ -204,9 +267,10 @@ class PomodoroWidget(QWidget):
             """)
         header.addWidget(self.settings_btn)
         header.addStretch()
-        right_layout.addLayout(header, 0, 0)
 
+        # ---------------------------------------------------------------------
         # 音量設定ボタン
+        # ---------------------------------------------------------------------
         volume_header = QHBoxLayout()
         self.volume_setting = QPushButton("🔈")
         self.volume_setting.setFixedSize(30, 30)
@@ -216,9 +280,12 @@ class PomodoroWidget(QWidget):
             """)
         volume_header.addStretch()
         volume_header.addWidget(self.volume_setting)
-        left_layout.addLayout(volume_header)
 
-        # セット数表示
+        # ---------------------------------------------------------------------
+        # 右側の画面の文字列の表示
+        # ---------------------------------------------------------------------
+
+        # セット数の表示
         self.sets_label = QLabel("")
         self.sets_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         self.sets_label.setStyleSheet("""
@@ -248,13 +315,12 @@ class PomodoroWidget(QWidget):
         right_layout.addWidget(self.total_time, 1, 1)
 
         # 目標勉強時間
-        self.goal_minutes = int(self.settings.value("goal/minutes",
-                                                    self.default_minutes * 4))
-
         self.goal_spin = QSpinBox(self)
         self.goal_spin.setFixedSize(120, 30)
+        # 目標時間はポモドーロの時間単位で設定できるようにしたいためrangeを設定する
         self.goal_spin.setRange(self.default_minutes,
                                 self.default_minutes * 99)
+        # setSingleStepで矢印が押されたときにどれだけ値が増減するかを決める
         self.goal_spin.setSingleStep(self.default_minutes)
         self.goal_spin.setValue(self.goal_minutes)
         self.goal_spin.setSuffix(" 分")
@@ -280,17 +346,23 @@ class PomodoroWidget(QWidget):
         right_layout.addWidget(goal_time, 2, 0)
         right_layout.addWidget(self.goal_spin, 2, 1)
 
-        # 残り時間／残りポモドーロ数ラベル
+        # 残り時間
         self.remain_time_label = QLabel()
-        self.remain_count_label = QLabel()
         self.remain_time_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # 残りポモドーロ数
+        self.remain_count_label = QLabel()
         self.remain_count_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         right_layout.addWidget(self.remain_time_label, 3, 0)
         right_layout.addWidget(self.remain_count_label, 3, 1)
 
-        # 最後に…
+        # _update_remainingで目標時間から残りの時間数とポモドーロ数を計算して表示させる
         self._update_remaining()
+
+        # ---------------------------------------------------------------------
+        # 左側の画面の文字列の表示
+        # ---------------------------------------------------------------------
 
         # 時間表示
         self.time_label = QLabel()
@@ -368,20 +440,6 @@ class PomodoroWidget(QWidget):
             }
         """)
         btn_layout.addWidget(self.skip_btn)
-        left_layout.addLayout(btn_layout)
-
-        #
-        # 境界線を作成
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.VLine)
-        separator.setFrameShadow(QFrame.Shadow.Sunken)
-        separator.setLineWidth(3)
-        separator.setStyleSheet("background-color: #464646;")
-
-        # --- メインレイアウトに全てを追加 ---
-        main_layout.addWidget(left_panel, stretch=3)
-        main_layout.addWidget(separator)
-        main_layout.addWidget(right_panel, stretch=2)
 
         # タイマー
         self.timer = QTimer(self)
@@ -419,15 +477,36 @@ class PomodoroWidget(QWidget):
         self.bgm_player.setSource(
             QUrl.fromLocalFile(resource_path("audio/clock.mp3")))
 
+        # ---------------------------------------------------------------------
+        # 画面全体の設定
+        # ---------------------------------------------------------------------
+        # 境界線を作成
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.VLine)
+        separator.setFrameShadow(QFrame.Shadow.Sunken)
+        separator.setLineWidth(3)
+        separator.setStyleSheet("background-color: #464646;")
+
+        # --- メインレイアウトに全てを追加 ---
+        left_layout.addLayout(btn_layout)
+        left_layout.addLayout(volume_header)
+        right_layout.addLayout(header, 0, 0)
+
+        main_layout.addWidget(left_panel, stretch=3)
+        main_layout.addWidget(separator)
+        main_layout.addWidget(right_panel, stretch=2)
+
         self._reset_display()
 
     def _skip_timer(self):
-        # 任意でタイマーの時間を0にする
+        """スキップボタンが押された際にtimerの時間を強制的に0にする
+        """
         self.remaining_tenths = 0
         self.bgm_player.stop()
 
     def _reset_display(self):
-        # 表示とボタンを初期状態に
+        """なにかしらの変更が行われたせいにその変更を画面に適応させる
+        """
         minutes = self.default_rest if self.is_break else self.default_minutes
         self.time_label.setText(f"{minutes:02d}:00")
         self.progress.setRange(0, minutes * 60 * 10)
@@ -440,6 +519,10 @@ class PomodoroWidget(QWidget):
         self._update_remaining()
 
     def _open_volume_settings(self):
+        """音量設定Widgetが開かれた時の処理
+        """
+
+        # 今現在のsfxとbgmの音量を取ってくる(0~1 → 0~100)
         current_sfx_volume_per = int(self.audio_output.volume() * 100)
         current_bgm_volume_per = int(self.bgm_audio_output.volume() * 100)
 
@@ -447,20 +530,24 @@ class PomodoroWidget(QWidget):
                                   initial_bgm_volume=current_bgm_volume_per,
                                   initial_sfx_volume=current_sfx_volume_per)
 
+        # dlg.exec()とはユーザがOKかCancelボタンを返したかどうかを返してAccepted(OK)が押されたら変更する
         if dlg.exec() == QDialog.DialogCode.Accepted:
             # ダイアログから新しい音量を取得
             new_sfx_volume_per, new_bgm_volume_per = dlg.values()
 
-            new_sfx_volume_float = new_sfx_volume_per / 100.0
-            new_bgm_volume_float = new_bgm_volume_per / 100.0
+            new_sfx_volume_float = new_sfx_volume_per / 100.0  # %に変更する
+            new_bgm_volume_float = new_bgm_volume_per / 100.0  # %に変更する
 
             self.audio_output.setVolume(new_sfx_volume_float)
             self.bgm_audio_output.setVolume(new_bgm_volume_float)
 
+            # settingsに書き込む
             self.settings.setValue("audio/volume", new_sfx_volume_float)
             self.settings.setValue("audio/bgm_volume", new_bgm_volume_float)
 
     def _open_settings(self):
+        """ポモドーロの設定Widgetが開かれた時の処理
+        """
         parent = self.window()
         dlg = TimerSettingDialog(parent,
                                  self.default_minutes,

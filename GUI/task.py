@@ -79,11 +79,12 @@ class TasksWidget(QWidget):
         tasks = []
         for i in range(self.task_list.count()):
             item = self.task_list.item(i)
-            tasks.append({
-                "text": item.text(),
-                "detail": item.data(Qt.ItemDataRole.UserRole),
-                "checked": item.checkState() == Qt.CheckState.Checked
-            })
+            if item is not None:
+                tasks.append({
+                    "text": item.text(),
+                    "detail": item.data(Qt.ItemDataRole.UserRole),
+                    "checked": item.checkState() == Qt.CheckState.Checked
+                })
         # 辞書のリストなら QSettings が QVariantList/QVariantMap に変換してくれる
         self.settings.setValue("tasks", tasks)
 
@@ -140,8 +141,10 @@ class TasksWidget(QWidget):
         delete_act.triggered.connect(lambda: self.delete_task(item))
 
         # グローバル座標に変換してメニュー表示
-        global_pos = self.task_list.viewport().mapToGlobal(pos)
-        menu.exec(global_pos)
+        viewport = self.task_list.viewport()
+        if viewport is not None:
+            global_pos = viewport.mapToGlobal(pos)
+            menu.exec(global_pos)
 
     def edit_task(self, item: QListWidgetItem):
         """アイテム名を編集"""

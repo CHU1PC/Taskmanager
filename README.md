@@ -28,6 +28,9 @@
 <img src="readme_img/task_add_btn.png" alt="タスクの追加ボタン" style="width: 50%; height: auto;"/>
 <img src="readme_img/task_task_sel.png" alt="タスク追加後の場所" style="width: 50%; height: auto;"/>
 
+### タスクを選択すると、右下に各タスクの今までの総合計勉強時間、今日の勉強時間、昨日の勉強時間を表示できる
+<img src="readme_img/task_time.png" alt="各タスクの情報" style="width: 50%; height: auto;">
+
 ### タスク選択画面で右クリックを押すと編集と削除を行えます
 <img src="readme_img/task_task_name_edit.png" alt="タスクの編集と削除" style="width: 50%; height: auto/"/>
 

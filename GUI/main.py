@@ -38,8 +38,7 @@ class MainWindow(QMainWindow):
 
         menu_items = [
             (resource_path("img/pomodoro.png"), "ポモドーロ"),
-            (resource_path("img/tasks.png"), "タスク"),
-            (resource_path("img/matrix.png"), "時間管理のマトリクス")
+            (resource_path("img/tasks.png"), "タスク")
         ]
 
         for icon_path, text in menu_items:

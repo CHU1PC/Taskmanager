@@ -1,11 +1,12 @@
 import os
 import sys
+import datetime
 
 from PyQt6.QtWidgets import (QDialog, QFormLayout, QSpinBox, QCheckBox,
                              QDialogButtonBox, QVBoxLayout, QHBoxLayout,
                              QLabel, QSlider, QWidget, QGridLayout,
                              QPushButton, QSizePolicy, QProgressBar, QFrame,
-                             QSystemTrayIcon
+                             QSystemTrayIcon, QComboBox
                              )
 from PyQt6.QtCore import Qt, QSettings, QTimer, QUrl
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
@@ -209,6 +210,10 @@ class PomodoroWidget(QWidget):
         # ---------------------------------------------------------------------
         # 設定読み込み
         # ---------------------------------------------------------------------
+
+        # タスク設定と同じものを使用する
+        self.task_settings = QSettings("CHU1PC", "TaskManagerApp")
+
         # QsettingsでCHU1PC/PomodoroAppに保存する
         self.settings = QSettings("CHU1PC", "PomodoroApp")
 
@@ -297,7 +302,6 @@ class PomodoroWidget(QWidget):
         """)
         self.sets_label.setSizePolicy(QSizePolicy.Policy.Expanding,
                                       QSizePolicy.Policy.Fixed)
-        right_layout.addWidget(self.sets_label, 1, 0)
 
         # 総勉強時間の表示
         self.total_time = QLabel()
@@ -312,7 +316,6 @@ class PomodoroWidget(QWidget):
         """)
         self.total_time.setSizePolicy(QSizePolicy.Policy.Expanding,
                                       QSizePolicy.Policy.Fixed)
-        right_layout.addWidget(self.total_time, 1, 1)
 
         # 目標勉強時間
         self.goal_spin = QSpinBox(self)
@@ -343,8 +346,6 @@ class PomodoroWidget(QWidget):
                 border-radius: 8px;
             }
         """)
-        right_layout.addWidget(goal_time, 2, 0)
-        right_layout.addWidget(self.goal_spin, 2, 1)
 
         # 残り時間
         self.remain_time_label = QLabel()
@@ -354,9 +355,97 @@ class PomodoroWidget(QWidget):
         self.remain_count_label = QLabel()
         self.remain_count_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
+        right_separator = QFrame()
+        right_separator.setFrameShape(QFrame.Shape.HLine)
+        right_separator.setFrameShadow(QFrame.Shadow.Sunken)
+        right_separator.setLineWidth(2)
+        right_separator.setStyleSheet("background-color: #464646;")
+
+        task_label = QLabel("現在のタスク")
+        task_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        task_label.setStyleSheet("""
+            QWidget {
+                background-color: #222;
+                color: #ddd;
+                border-radius: 8px;
+                padding: 5px;
+            }
+        """)
+
+        self.task_combo = QComboBox()
+        self.task_combo.setStyleSheet("""
+            QComBox {
+                background-color: #333;
+                color: #ddd:
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+            }
+            QComBox::drop-down {
+                border: none;
+            }
+            QComBox:down-arrow {
+                color: #ddd;
+            }
+        """)
+
+        self.task_combo.addItem("タスクなし")
+        self.task_combo.currentTextChanged.connect(self._on_task_changed)
+
+        # タスク更新ボタン
+        self.refresh_task_btn = QPushButton("更新")
+        self.refresh_task_btn.setFixedSize(60, 30)
+        self.refresh_task_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #444;
+                color: #ddd;
+                border: 1px solid #666;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #555;
+            }
+        """)
+        self.refresh_task_btn.clicked.connect(self._refresh_tasks)
+
+        # 現在のタスク表示
+        self.current_task_label = QLabel("選択されていません")
+        self.current_task_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.current_task_label.setStyleSheet("""
+            QWidget {
+                background-color: #222;
+                color: #ddd;
+                border-radius: 8px;
+                padding: 8px;
+                font-weight: bold;
+            }
+        """)
+
+        # タスク選択行
+        task_select_layout = QHBoxLayout()
+        task_select_layout.addWidget(self.task_combo, stretch=3)
+        task_select_layout.addWidget(self.refresh_task_btn, stretch=1)
+
+        task_select_widget = QWidget()
+        task_select_widget.setLayout(task_select_layout)
+
+        self.selected_task = None
+
+        # 画面への追加
+        right_layout.addWidget(self.sets_label, 1, 0)
+        right_layout.addWidget(self.total_time, 1, 1)
+        right_layout.addWidget(goal_time, 2, 0)
+        right_layout.addWidget(self.goal_spin, 2, 1)
         right_layout.addWidget(self.remain_time_label, 3, 0)
         right_layout.addWidget(self.remain_count_label, 3, 1)
 
+        right_layout.addWidget(right_separator, 4, 0, 1, 2)
+
+        right_layout.addWidget(task_label, 5, 0, 1, 2)
+        right_layout.addWidget(task_select_widget, 6, 0, 1, 2)
+        right_layout.addWidget(self.current_task_label, 7, 0, 1, 2)
+
+        self._refresh_tasks()
         # _update_remainingで目標時間から残りの時間数とポモドーロ数を計算して表示させる
         self._update_remaining()
 
@@ -503,20 +592,6 @@ class PomodoroWidget(QWidget):
         """
         self.remaining_tenths = 0
         self.bgm_player.stop()
-
-    def _reset_display(self):
-        """なにかしらの変更が行われたせいにその変更を画面に適応させる
-        """
-        minutes = self.default_rest if self.is_break else self.default_minutes
-        self.time_label.setText(f"{minutes:02d}:00")
-        self.progress.setRange(0, minutes * 60 * 10)
-        self.progress.setValue(self.progress.maximum())
-        self.start_btn.setText("開始")
-        self.sets_label.setText(f"セット数: \n{self.sets_completed}")
-        total_hours = (self.sets_completed * self.default_minutes) // 60
-        total_minutes = (self.sets_completed * self.default_minutes) % 60
-        self.total_time.setText(f"総勉強時間: \n{total_hours}時間{total_minutes}分")
-        self._update_remaining()
 
     def _open_volume_settings(self):
         """音量設定Widgetが開かれた時の処理
@@ -685,6 +760,8 @@ class PomodoroWidget(QWidget):
             self.sets_completed += 1
             self.settings.setValue("history/total_sets", self.sets_completed)
 
+            self._record_study_time(self.default_minutes)
+
         # フェーズ切替
         self.is_break = not self.is_break
         self.timer.stop()
@@ -696,3 +773,91 @@ class PomodoroWidget(QWidget):
         elif not self.is_break and self.auto_next:
             self._start_phase()
             self.timer.start()
+
+    def _record_study_time(self, minutes):
+        today = datetime.date.today().isoformat()
+
+        study_records = self.task_settings.value("study_time", {})
+
+        # 今日の記録を更新
+        if today not in study_records:
+            study_records[today] = 0
+        study_records[today] += minutes
+
+        if self.selected_task:
+            task_study_records = \
+                self.task_settings.value("task_study_time", {})
+            if self.selected_task not in task_study_records:
+                task_study_records[self.selected_task] = {}
+            if today not in task_study_records[self.selected_task]:
+                task_study_records[self.selected_task][today] = 0
+            task_study_records[self.selected_task][today] += minutes
+
+            # タスク別勉強時間を保存
+            self.task_settings.setValue("task_study_time", task_study_records)
+
+        # 全体の勉強時間記録を保存
+        self.task_settings.setValue("study_time", study_records)
+
+    def _refresh_tasks(self):
+        """タスクリストを更新"""
+        # 現在の選択を保存
+        current_text = self.task_combo.currentText()
+
+        # コンボボックスをクリア
+        self.task_combo.clear()
+        self.task_combo.addItem("タスクなし")
+
+        # task.pyと同じ設定でタスクを読み込み
+        task_settings = QSettings("CHU1PC", "TaskManagerApp")
+        stored_tasks = task_settings.value("tasks", [])
+
+        # 未完了のタスクのみを追加
+        for task_entry in stored_tasks:
+            task_text = task_entry.get("text", "")
+            if task_text:
+                self.task_combo.addItem(task_text)
+
+        # 前の選択を復元（可能なら）
+        index = self.task_combo.findText(current_text)
+        if index >= 0:
+            self.task_combo.setCurrentIndex(index)
+        else:
+            self.task_combo.setCurrentIndex(0)  # "タスクなし"を選択
+
+    def _on_task_changed(self, task_text):
+        """タスク選択が変更された時の処理"""
+        if task_text == "タスクなし" or not task_text:
+            self.selected_task = None
+            self.current_task_label.setText("選択されていません")
+        else:
+            self.selected_task = task_text
+            # テキストが長い場合は省略表示
+            display_text = task_text if len(task_text) <= 20 \
+                else task_text[:17] + "..."
+            self.current_task_label.setText(f"実行中: {display_text}")
+
+        # 設定に選択中のタスクを保存
+        self.settings.setValue("current_task", task_text if
+                               task_text != "タスクなし" else "")
+
+    def _reset_display(self):
+        """なにかしらの変更が行われたせいにその変更を画面に適応させる
+        """
+        minutes = self.default_rest if self.is_break else self.default_minutes
+        self.time_label.setText(f"{minutes:02d}:00")
+        self.progress.setRange(0, minutes * 60 * 10)
+        self.progress.setValue(self.progress.maximum())
+        self.start_btn.setText("開始")
+        self.sets_label.setText(f"セット数: \n{self.sets_completed}")
+        total_hours = (self.sets_completed * self.default_minutes) // 60
+        total_minutes = (self.sets_completed * self.default_minutes) % 60
+        self.total_time.setText(f"総勉強時間: \n{total_hours}時間{total_minutes}分")
+        self._update_remaining()
+
+        # 保存されている選択中のタスクを復元
+        saved_task = self.settings.value("current_task", "")
+        if saved_task:
+            index = self.task_combo.findText(saved_task)
+            if index >= 0:
+                self.task_combo.setCurrentIndex(index)

@@ -444,6 +444,7 @@ class PomodoroWidget(QWidget):
         right_layout.addWidget(task_label, 5, 0, 1, 2)
         right_layout.addWidget(task_select_widget, 6, 0, 1, 2)
         right_layout.addWidget(self.current_task_label, 7, 0, 1, 2)
+        right_layout.addLayout(header, 0, 0)
 
         self._refresh_tasks()
         # _update_remainingで目標時間から残りの時間数とポモドーロ数を計算して表示させる
@@ -461,15 +462,11 @@ class PomodoroWidget(QWidget):
                 color: #ffffff;
                 font-size: 48px;
             """)
-        left_layout.addStretch()
-        left_layout.addWidget(self.time_label)
-        left_layout.addStretch()
 
         # プログレスバー
         self.progress = QProgressBar()
         self.progress.setTextVisible(False)
         self.progress.setFixedHeight(20)
-        left_layout.addWidget(self.progress)
 
         # ボタン: 開始/停止 と リセットとスキップ
         btn_layout = QHBoxLayout()
@@ -566,6 +563,13 @@ class PomodoroWidget(QWidget):
         self.bgm_player.setSource(
             QUrl.fromLocalFile(resource_path("audio/clock.mp3")))
 
+        left_layout.addLayout(volume_header)
+        left_layout.addStretch()
+        left_layout.addWidget(self.time_label)
+        left_layout.addStretch()
+        left_layout.addWidget(self.progress)
+        left_layout.addLayout(btn_layout)
+
         # ---------------------------------------------------------------------
         # 画面全体の設定
         # ---------------------------------------------------------------------
@@ -577,10 +581,6 @@ class PomodoroWidget(QWidget):
         separator.setStyleSheet("background-color: #464646;")
 
         # --- メインレイアウトに全てを追加 ---
-        left_layout.addLayout(btn_layout)
-        left_layout.addLayout(volume_header)
-        right_layout.addLayout(header, 0, 0)
-
         main_layout.addWidget(left_panel, stretch=3)
         main_layout.addWidget(separator)
         main_layout.addWidget(right_panel, stretch=2)

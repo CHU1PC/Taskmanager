@@ -130,12 +130,11 @@ class TasksWidget(QWidget):
                 padding: 5px;
             }
             QComBox::drop-down {
-                border: none;
+                border: 1px;
                 background-color: #333;
                 color: #ffffff;
             }
             QComBox::down-arrow {
-                color: #ddd;
                 background-color: #333;
                 color: #ffffff;
             }

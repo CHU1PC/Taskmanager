@@ -411,27 +411,39 @@ class TasksWidget(QWidget):
             QMessageBox {
                 background-color: #404040;
                 color: #ffffff;
+                border: 1px solid #555;
             }
-            QLabel {
-                background-color: #404040;
+            QMessageBox QLabel {
+                background-color: transparent;
                 color: #ffffff;
                 font-size: 14px;
+                padding: 10px;
             }
-            QPushButton {
+            QMessageBox QPushButton {
                 background-color: #555;
-                color: #fff;
+                color: #ffffff;
+                border: 1px solid #666;
                 border-radius: 4px;
-                padding: 8px;
+                padding: 8px 16px;
                 min-width: 80px;
+                font-size: 12px;
             }
-            QPushButton:hover {
+            QMessageBox QPushButton:hover {
                 background-color: #666;
+                border-color: #777;
             }
-            QPushButton:contains("Yes") {
+            QMessageBox QPushButton:pressed {
+                background-color: #444;
+            }
+            QMessageBox QPushButton[text="はい"],
+            QMessageBox QPushButton[text="Yes"] {
                 background-color: #d63384;
+                border-color: #e91e63;
             }
-            QPushButton:contains("Yes"):hover {
+            QMessageBox QPushButton[text="はい"]:hover,
+            QMessageBox QPushButton[text="Yes"]:hover {
                 background-color: #e91e63;
+                border-color: #f8285a;
             }
         """)
 

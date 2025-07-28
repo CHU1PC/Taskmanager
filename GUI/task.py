@@ -3,49 +3,10 @@ import datetime
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QLineEdit, QPushButton,
                              QHBoxLayout, QListWidget, QListWidgetItem, QFrame,
                              QTextEdit, QMenu, QInputDialog, QGridLayout,
-                             QGroupBox, QLabel, QDialogButtonBox, QSpinBox,
-                             QFormLayout, QDialog, QMessageBox
+                             QGroupBox, QLabel, QMessageBox
                              )
-from PyQt6.QtGui import QAction, QCursor
+from PyQt6.QtGui import QAction
 from PyQt6.QtCore import Qt, QSettings
-
-
-class StudyTimeEditDialog(QDialog):
-    """勉強時間編集ダイアログ"""
-    def __init__(self, parent=None, current_hours=0, current_minutes=0):
-        super().__init__(parent)
-        self.setWindowTitle("勉強時間を編集")
-        self.setFixedSize(300, 150)
-
-        layout = QFormLayout(self)
-
-        # 時間入力
-        self.hours_spin = QSpinBox()
-        self.hours_spin.setRange(0, 999)
-        self.hours_spin.setValue(current_hours)
-        self.hours_spin.setSuffix(" 時間")
-
-        # 分入力
-        self.minutes_spin = QSpinBox()
-        self.minutes_spin.setRange(0, 59)
-        self.minutes_spin.setValue(current_minutes)
-        self.minutes_spin.setSuffix(" 分")
-
-        layout.addRow("時間:", self.hours_spin)
-        layout.addRow("分:", self.minutes_spin)
-
-        # ボタン
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok |
-            QDialogButtonBox.StandardButton.Cancel
-        )
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
-        layout.addRow(buttons)
-
-    def get_total_minutes(self):
-        """入力された時間を分数で返す"""
-        return self.hours_spin.value() * 60 + self.minutes_spin.value()
 
 
 class TasksWidget(QWidget):
@@ -76,26 +37,6 @@ class TasksWidget(QWidget):
             padding: 8px;
             font-size: 14px;
         """)
-        self.today_sum_time.\
-            setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.today_sum_time.mousePressEvent = self._edit_today_total_time  # type: ignore # noqa
-
-        # 編集ボタンを追加
-        self.edit_time_btn = QPushButton("時間を編集")
-        self.edit_time_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #444;
-                color: #ddd;
-                border: 1px solid #666;
-                border-radius: 4px;
-                padding: 5px;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #555;
-            }
-        """)
-        self.edit_time_btn.clicked.connect(self._edit_today_total_time)
 
         # リセットボタンを追加
         self.reset_time_btn = QPushButton("時間をリセット")
@@ -227,7 +168,6 @@ class TasksWidget(QWidget):
         study_layout.addWidget(self.yesterday_study_label, 1, 1)
 
         left_layout.addWidget(self.today_sum_time)
-        left_layout.addWidget(self.edit_time_btn)
         left_layout.addWidget(self.reset_time_btn)
         left_layout.addStretch()
 
@@ -279,11 +219,8 @@ class TasksWidget(QWidget):
             return
 
         # チェックボックスの状態を取得
-
         item = QListWidgetItem(task_text)
-
         item.setCheckState(Qt.CheckState.Unchecked)
-
         item.setData(Qt.ItemDataRole.UserRole, "")
 
         # リストにアイテムを追加
@@ -440,48 +377,6 @@ class TasksWidget(QWidget):
         total_hours, total_mins = divmod(today_total_minutes, 60)
         self.today_sum_time.setText(
             f"総合計: {total_hours}時間{total_mins}分")
-
-    def _edit_today_total_time(self, event=None):
-        """今日の総勉強時間を編集"""
-        # 現在の勉強時間を取得
-        study_records = self.settings.value("study_time", {})
-        today = datetime.date.today().isoformat()
-        current_minutes = study_records.get(today, 0)
-        current_hours, current_mins = divmod(current_minutes, 60)
-
-        # 編集ダイアログを表示
-        dialog = StudyTimeEditDialog(
-            self,
-            current_hours=current_hours,
-            current_minutes=current_mins
-        )
-
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            new_total_minutes = dialog.get_total_minutes()
-
-            # 確認メッセージ
-            reply = QMessageBox.question(
-                self,
-                "勉強時間の変更",
-                f"今日の総勉強時間を {new_total_minutes // 60}時間{new_total_minutes % 60}分 に変更しますか？\n"  # noqa
-                f"現在: {current_hours}時間{current_mins}分",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-
-            if reply == QMessageBox.StandardButton.Yes:
-                # 勉強時間を更新
-                study_records[today] = new_total_minutes
-                self.settings.setValue("study_time", study_records)
-
-                # 画面を更新
-                self.update_study_time_display()
-
-                # 成功メッセージ
-                QMessageBox.information(
-                    self,
-                    "変更完了",
-                    f"今日の総勉強時間を {new_total_minutes // 60}時間{new_total_minutes % 60}分 に変更しました。"  # noqa
-                )
 
     def _reset_today_total_time(self):
         """今日の総勉強時間をリセット"""

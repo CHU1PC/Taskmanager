@@ -37,6 +37,31 @@
 ### 左の2つのボタンからその日の合計勉強時間の編集と0にリセットすることができます
 <img src="readme_img/sum_time_edit.png" alt="その日の合計時間の編集" style="width: 50%; height: auto;"/>
 
+### 保存先ファイルであったり、保存されているものを見るためには次のコードを実行してください
+```bash
+python3 -c "
+from PyQt6.QtCore import QSettings
+import os
+
+settings = QSettings('CHU1PC', 'TaskManagerApp')
+print('設定ファイルの場所:')
+print(settings.fileName())
+print()
+
+if os.path.exists(settings.fileName()):
+    print('ファイルサイズ:', os.path.getsize(settings.fileName()), 'bytes')
+    print('最終更新:', os.path.getmtime(settings.fileName()))
+else:
+    print('設定ファイルはまだ存在しません')
+
+print()
+print('保存される設定キー:')
+settings.beginGroup('')
+for key in settings.allKeys():
+    print(f'  {key}: {settings.value(key)}')
+"
+```
+
 ## もしzipファイルが動かない場合は制作者に連絡するか、自身でローカルにcloneしていただき次のコマンドをカレントディレクトリをGUIにしてから実行してください
 
 ## for mac

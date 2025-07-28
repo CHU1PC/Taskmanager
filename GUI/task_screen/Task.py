@@ -30,8 +30,8 @@ class TasksWidget(QWidget):
         # 左の画面
         # ---------------------------------------------------------------------
 
-        # 全タスクの総勉強時間
-        self.today_sum_time = QLabel("全タスクの総合計:\n0時間00分")
+        # 本日の総勉強時間
+        self.today_sum_time = QLabel("本日の総勉強時間: 0時間00分")
         self.today_sum_time.setStyleSheet("""
             color: #ffffff;
             background-color: #333;
@@ -39,13 +39,12 @@ class TasksWidget(QWidget):
             padding: 8px;
             font-size: 14px;
         """)
-        self.today_sum_time.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # リセットボタンを追加
         self.reset_time_btn = QPushButton("時間をリセット")
         self.reset_time_btn.setStyleSheet("""
             QPushButton {
-                background-color: #870000;
+                background-color: #5a2d2d;
                 color: #ddd;
                 border: 1px solid #7c4a4a;
                 border-radius: 4px;
@@ -56,7 +55,7 @@ class TasksWidget(QWidget):
                 background-color: #6b3a3a;
             }
         """)
-        self.reset_time_btn.clicked.connect(self._reset_total_time)
+        self.reset_time_btn.clicked.connect(self._reset_today_total_time)
 
         # ---------------------------------------------------------------------
         # 真ん中の画面
@@ -72,11 +71,18 @@ class TasksWidget(QWidget):
             padding: 8px;
             font-size: 14px;
         """)
-        self.input_line.returnPressed.connect(self.on_add_ckicked)
+        self.input_line.returnPressed.connect(self.on_add_clicked)
 
-        # 緊急度選択ComboBox
-        self.priority_combo = QComboBox(self)
-        self.priority_combo.setStyleSheet("""
+        # 追加ボタン
+        self.add_btn = QPushButton("追加")
+        self.add_btn.setStyleSheet("color: #ffffff;")
+        self.add_btn.clicked.connect(self.on_add_clicked)
+
+        input_layout = QHBoxLayout()
+
+        # 緊急度重要度選択よう
+        self.urgency_select = QComboBox(self)
+        self.urgency_select.setStyleSheet("""
             QComboBox {
                 background-color: #333;
                 color: #ddd;
@@ -99,18 +105,11 @@ class TasksWidget(QWidget):
         """)
 
         # 緊急度×重要度の4つの分類を追加
-        self.priority_combo.addItem("📋 通常", "normal")
-        self.priority_combo.addItem("🔥 緊急×重要", "urgent_important")
-        self.priority_combo.addItem("⚡ 緊急×非重要", "urgent_not_important")
-        self.priority_combo.addItem("💡 非緊急×重要", "not_urgent_important")
-        self.priority_combo.addItem("📝 非緊急×非重要", "not_urgent_not_important")
-
-        # 追加ボタン
-        self.add_btn = QPushButton("追加")
-        self.add_btn.setStyleSheet("color: #ffffff;")
-        self.add_btn.clicked.connect(self.on_add_ckicked)
-
-        input_layout = QHBoxLayout()
+        self.urgency_select.addItem("📋 通常", "normal")
+        self.urgency_select.addItem("🔥 緊急×重要", "urgent_important")
+        self.urgency_select.addItem("⚡ 緊急×非重要", "urgent_not_important")
+        self.urgency_select.addItem("💡 非緊急×重要", "not_urgent_important")
+        self.urgency_select.addItem("📝 非緊急×非重要", "not_urgent_not_important")
 
         # タスク表示欄
         self.task_list = QListWidget(self)
@@ -118,18 +117,14 @@ class TasksWidget(QWidget):
             Qt.ContextMenuPolicy.CustomContextMenu)
         self.task_list.customContextMenuRequested.connect(
             self.show_context_menu)
-        self.task_list.setStyleSheet("""
-                                     color: #ffffff;
-                                     font-size: 14px;
-                                     """)
-        self.task_list.itemChanged.connect(self.sort_tasks)
+        self.task_list.setStyleSheet("color: #ffffff;")
 
-        # タスク表示の並び替え変更用ボタン
+        # タスク表示並び替え変更用ボタン
         self.task_sort = QComboBox()
         self.task_sort.setStyleSheet("""
             QComBox {
                 background-color: #333;
-                color: #ddd:
+                color: #ddd;
                 border: 1px solid #555;
                 border-radius: 4px;
                 padding: 5px;
@@ -137,7 +132,7 @@ class TasksWidget(QWidget):
             QComBox::drop-down {
                 border: none;
             }
-            QComBox:down-arrow {
+            QComBox::down-arrow {
                 color: #ddd;
             }
         """)
@@ -145,7 +140,13 @@ class TasksWidget(QWidget):
         self.task_sort.addItem("グループ")
         self.task_sort.addItem("緊急度順")
         self.task_sort.addItem("アイゼンハワーマトリックス")
-        self.task_sort.currentTextChanged.connect(self.on_sort_changed)
+        self.task_sort.currentTextChanged.connect(self.sort_tasks)
+
+        # 保存された並び順設定を読み込み
+        saved_sort_type = self.settings.value("sort_type", "特になし")
+        sort_index = self.task_sort.findText(saved_sort_type)
+        if sort_index >= 0:
+            self.task_sort.setCurrentIndex(sort_index)
 
         # ---------------------------------------------------------------------
         # 右の画面
@@ -159,8 +160,17 @@ class TasksWidget(QWidget):
         self.task_list.currentItemChanged.connect(self.on_item_selected)
         self.detail_edit.textChanged.connect(self.on_detail_changed)
 
-        # 緊急度の表示
-        urgency = QLabel("緊急度 重要度: \n普通")
+        # 緊急度重要度用
+        self.urgency = QLabel("緊急度, 重要度:\n📖普通")
+        self.urgency.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.urgency.setStyleSheet("""
+            color: #ffffff;
+            background-color: #333;
+            border-radius: 5px;
+            padding: 8px;
+            font-size: 14px;
+            font-weight: bold;
+        """)
 
         # 勉強時間表示エリア
         study_time_group = QGroupBox("勉強時間統計")
@@ -239,15 +249,15 @@ class TasksWidget(QWidget):
         study_layout.addWidget(self.yesterday_study_label, 1, 1)
 
         left_layout.addWidget(self.today_sum_time)
-        left_layout.addStretch()
         left_layout.addWidget(self.reset_time_btn)
         left_layout.addStretch()
 
         mid_layout.addLayout(input_layout)
-        mid_layout.addWidget(self.priority_combo)
+        mid_layout.addWidget(self.urgency_select)
         mid_layout.addWidget(self.task_sort)
         mid_layout.addWidget(self.task_list)
 
+        right_layout.addWidget(self.urgency)
         right_layout.addWidget(self.detail_edit)
         right_layout.addWidget(study_time_group)
 
@@ -255,9 +265,9 @@ class TasksWidget(QWidget):
 
         main_layout.addWidget(left_panel, stretch=2)
         main_layout.addWidget(separator0)
-        main_layout.addWidget(mid_panel, stretch=4)
+        main_layout.addWidget(mid_panel, stretch=3)
         main_layout.addWidget(separator1)
-        main_layout.addWidget(right_panel, stretch=3)
+        main_layout.addWidget(right_panel, stretch=2)
 
     def _save_tasks(self):
         tasks = []
@@ -268,7 +278,7 @@ class TasksWidget(QWidget):
                     "text": item.text(),
                     "detail": item.data(Qt.ItemDataRole.UserRole),
                     "checked": item.checkState() == Qt.CheckState.Checked,
-                    "priority": item.data(Qt.ItemDataRole.UserRole + 1)
+                    "urgency": item.data(Qt.ItemDataRole.UserRole + 1)
                 })
         # 辞書のリストなら QSettings が QVariantList/QVariantMap に変換してくれる
         self.settings.setValue("tasks", tasks)
@@ -286,18 +296,20 @@ class TasksWidget(QWidget):
                 Qt.CheckState.Unchecked
             )
             item.setData(Qt.ItemDataRole.UserRole, entry.get("detail", ""))
-            # 緊急度データも復元
-            priority_data = entry.get("priority", "normal")
-            item.setData(Qt.ItemDataRole.UserRole + 1, priority_data)
+            urgency = entry.get("urgency", "normal")
+            item.setData(Qt.ItemDataRole.UserRole + 1, urgency)
             self.task_list.addItem(item)
 
-    def on_add_ckicked(self):
+        # タスク読み込み後に保存された並び順を適用
+        self.sort_tasks()
+
+    def on_add_clicked(self):
         task_text = self.input_line.text()
         if not task_text:
             return
 
         # 選択された緊急度を取得
-        priority_data = self.priority_combo.currentData()
+        priority_data = self.urgency_select.currentData()
 
         item = QListWidgetItem(task_text)
         item.setCheckState(Qt.CheckState.Unchecked)
@@ -312,12 +324,15 @@ class TasksWidget(QWidget):
         self.task_list.addItem(item)
         self.sort_tasks()
 
+        # 追加したアイテムを選択して緊急度表示を更新
+        self.task_list.setCurrentItem(item)
+
         # 入力欄をリセット
         self.input_line.clear()
         self.input_line.setFocus()
 
         # 緊急度選択も通常に戻す
-        self.priority_combo.setCurrentIndex(0)
+        self.urgency_select.setCurrentIndex(0)
 
         self._save_tasks()
 
@@ -360,6 +375,12 @@ class TasksWidget(QWidget):
         item.setText(values["name"])
         item.setData(Qt.ItemDataRole.UserRole + 1, values["priority_data"])
 
+        # 緊急度表示を更新（編集されたアイテムが選択されている場合）
+        if self.task_list.currentItem() == item:
+            priority_display = self._get_priority_display_text(
+                values["priority_data"])
+            self.urgency.setText(f"緊急度, 重要度:\n{priority_display}")
+
         # 詳細欄の緊急度情報は削除せず、現在の内容をそのまま保持
         # （ユーザーが編集した内容を保護）
 
@@ -385,10 +406,11 @@ class TasksWidget(QWidget):
         # ダークテーマスタイル
         msg_box.setStyleSheet("""
             QMessageBox {
-                background-color: #3c3c3c;
+                background-color: #404040;
                 color: #ffffff;
             }
             QLabel {
+                background-color: #404040;
                 color: #ffffff;
                 font-size: 14px;
             }
@@ -453,6 +475,7 @@ class TasksWidget(QWidget):
     def on_item_selected(self, current, previous):
         if current is None:
             self.detail_edit.clear()
+            self.urgency.setText("緊急度, 重要度:\n📖普通")
             return
 
         # 通常の処理
@@ -461,7 +484,23 @@ class TasksWidget(QWidget):
         self.detail_edit.setPlainText(detail)
         self.detail_edit.blockSignals(False)
 
+        # 緊急度表示を更新
+        priority_data = current.data(Qt.ItemDataRole.UserRole + 1) or "normal"
+        priority_display = self._get_priority_display_text(priority_data)
+        self.urgency.setText(f"緊急度, 重要度:\n{priority_display}")
+
         self.update_study_time_display()
+
+    def _get_priority_display_text(self, priority_data):
+        """緊急度データから表示用テキストを取得"""
+        priority_map = {
+            "normal": "📋 通常",
+            "urgent_important": "🔥 緊急×重要",
+            "urgent_not_important": "⚡ 緊急×非重要",
+            "not_urgent_important": "💡 非緊急×重要",
+            "not_urgent_not_important": "📝 非緊急×非重要"
+        }
+        return priority_map.get(priority_data, "📖 普通")
 
     def on_detail_changed(self):
         item = self.task_list.currentItem()
@@ -517,50 +556,21 @@ class TasksWidget(QWidget):
             self.yesterday_study_label.setText(
                 f"昨日: {yesterday_hours}時間{yesterday_mins}分")
 
-        # 全てのタスクの総合計勉強時間
+        # その日の総合計勉強時間
         today_total_minutes = sum(study_records.values())
         total_hours, total_mins = divmod(today_total_minutes, 60)
         self.today_sum_time.setText(
-            f"全タスクの総合計:\n{total_hours}時間{total_mins}分")
+            f"総合計: {total_hours}時間{total_mins}分")
 
-    def _reset_total_time(self):
-        """全タスクの総勉強時間をリセット"""
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle("勉強時間のリセット")
-        msg_box.setText("全タスクの総勉強時間を0にリセットしますか？\nこの操作は取り消せません。")
-        msg_box.setIcon(QMessageBox.Icon.Question)
-        msg_box.setStandardButtons(
+    def _reset_today_total_time(self):
+        """今日の総勉強時間をリセット"""
+        reply = QMessageBox.question(
+            self,
+            "勉強時間のリセット",
+            "今日の総勉強時間を0にリセットしますか？\n"
+            "この操作は取り消せません。",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
-        msg_box.setDefaultButton(QMessageBox.StandardButton.No)
-
-        msg_box.setStyleSheet("""
-            QMessageBox {
-                background-color: #3c3c3c;
-            }
-            QLabel {
-                color: #ffffff;
-                font-size: 14px;
-            }
-            QPushButton {
-                background-color: #555;
-                color: #fff;
-                border-radius: 4px;
-                padding: 8px;
-                min-width: 80px;
-            }
-            QPushButton:hover {
-                background-color: #666;
-            }
-            QPushButton:contains("Yes") {
-                background-color: #a44;
-            }
-            QPushButton:contains("Yes"):hover {
-                background-color: #b55;
-            }
-        """)
-
-        reply = msg_box.exec()
 
         if reply == QMessageBox.StandardButton.Yes:
             # 今日の勉強時間を削除
@@ -585,12 +595,8 @@ class TasksWidget(QWidget):
             QMessageBox.information(
                 self,
                 "リセット完了",
-                "全タスクの総勉強時間をリセットしました。",
+                "今日の総勉強時間をリセットしました。"
             )
-
-    def on_sort_changed(self):
-        """ソート方式が変更された時の処理"""
-        self.sort_tasks()
 
     def sort_tasks(self):
         """選択されたソート方式に基づいてタスクを並び替える"""
@@ -675,11 +681,11 @@ class TasksWidget(QWidget):
                 # 3. Delegate (緊急×非重要)
                 # 4. Eliminate (非緊急×非重要)
                 eisenhower_order = {
-                    "urgent_important": 0,        # Do First
-                    "not_urgent_important": 1,    # Schedule
-                    "urgent_not_important": 2,    # Delegate
-                    "normal": 3,                  # 通常
-                    "not_urgent_not_important": 4  # Eliminate
+                    "urgent_important": 0,
+                    "urgent_not_important": 1,
+                    "not_urgent_important": 2,
+                    "normal": 3,
+                    "not_urgent_not_important": 4
                 }
 
                 priority = eisenhower_order.get(priority_data, 3)
@@ -691,3 +697,6 @@ class TasksWidget(QWidget):
         # 3. 並び替えたリストをQListWidgetに戻す
         for item in items:
             self.task_list.addItem(item)
+
+        # 並び順設定を保存
+        self.settings.setValue("sort_type", sort_type)

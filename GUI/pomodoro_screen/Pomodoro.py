@@ -1,11 +1,8 @@
-import os
-import sys
 import datetime
 
-from PyQt6.QtWidgets import (QDialog, QFormLayout, QSpinBox, QCheckBox,
-                             QDialogButtonBox, QVBoxLayout, QHBoxLayout,
-                             QLabel, QSlider, QWidget, QGridLayout,
-                             QPushButton, QSizePolicy, QProgressBar, QFrame,
+from PyQt6.QtWidgets import (QDialog, QSpinBox, QVBoxLayout, QHBoxLayout,
+                             QLabel, QWidget, QGridLayout, QPushButton,
+                             QSizePolicy, QProgressBar, QFrame,
                              QSystemTrayIcon, QComboBox
                              )
 from PyQt6.QtCore import Qt, QSettings, QTimer, QUrl
@@ -13,180 +10,9 @@ from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtGui import QIcon
 
 
-def resource_path(rel_path: str) -> str:
-    """
-    PyInstaller のビルド方式に合わせて
-    リソースが展開されるベースパスを返す。
-    """
-    # onefile のときは _MEIPASS、一方 onedir や普通の実行時はスクリプトのある場所
-    base_path = getattr(sys, "_MEIPASS", os.path.dirname(__file__))
-    return os.path.join(base_path, rel_path)
-
-
-class TimerSettingDialog(QDialog):
-    def __init__(self, parent=None, minutes=25, rest=5,
-                 auto_next=False, auto_break=False):
-        super().__init__(parent)
-        self.setWindowTitle("タイマーの設定")
-        self.resize(320, 260)
-
-        # ラベルと入力フォームのペアでWidgetを配置するクラス
-        layout = QFormLayout(self)
-
-        # 入力フォームは中央寄せ
-        layout.setFormAlignment(Qt.AlignmentFlag.AlignCenter)
-        # 水平方向に20だけ間隔をあけて, 垂直方向に15だけ開ける
-        layout.setHorizontalSpacing(20)
-        layout.setVerticalSpacing(15)
-
-        # ---------------------------------------------------------------------
-        # ポモドーロの時間の設定を行う
-        # ---------------------------------------------------------------------
-
-        # 整数値の入力や、上下の矢印ボタンで値を増減することもできる
-        self.pomo_time = QSpinBox()
-        self.pomo_time.setRange(1, 99)
-        self.pomo_time.setValue(minutes)
-        self.pomo_time.setFixedSize(80, 20)
-        self.pomo_time.setStyleSheet("""
-                background-color: #404040;
-                color: #ffffff;
-            """)
-        pomodoro_time = QLabel("ポモドーロの時間")
-        pomodoro_time.setStyleSheet("color: #ffffff;")
-        layout.addRow(pomodoro_time, self.pomo_time)
-
-        # ---------------------------------------------------------------------
-        # 休憩時間の設定を行う
-        # ---------------------------------------------------------------------
-        self.rest_time = QSpinBox()
-        self.rest_time.setRange(1, 99)
-        self.rest_time.setValue(rest)
-        self.rest_time.setFixedSize(80, 20)
-        self.rest_time.setStyleSheet("""
-                background-color: #404040;
-                color: #ffffff;
-            """)
-        rest_time = QLabel("休憩時間")
-        rest_time.setStyleSheet("color: #ffffff;")
-        layout.addRow(rest_time, self.rest_time)
-
-        # ---------------------------------------------------------------------
-        # ポモドーロと休憩時間の自動開始の有無
-        # ---------------------------------------------------------------------
-
-        self.chk_auto_next = QCheckBox("次のポモドーロを自動で開始")
-        self.chk_auto_next.setChecked(auto_next)
-        self.chk_auto_next.setStyleSheet("color: #ffffff;")
-        layout.addRow(self.chk_auto_next)
-
-        self.chk_auto_break = QCheckBox("休憩を自動開始")
-        self.chk_auto_break.setChecked(auto_break)
-        self.chk_auto_break.setStyleSheet("color: #ffffff;")
-        layout.addRow(self.chk_auto_break)
-
-        # ---------------------------------------------------------------------
-        # OK, Cancelボタンの設定
-        # ---------------------------------------------------------------------
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok |
-            QDialogButtonBox.StandardButton.Cancel,
-            self
-        )
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
-        buttons.setStyleSheet("color: #ffffff;")
-        layout.addWidget(buttons)
-
-    def values(self):
-        """Timerで設定した値を返す
-
-        Returns:
-            self.pomo_time.value() (int): ポモドーロの時間を返す
-            self.rest_time.value() (int): 休憩時間を返す
-            self.chk_auto_next.isChecked() (bool): ポモドーロを自動開始の有無
-            self.chk_auto_break.isChecked() (bool): 休憩の自動開始の有無
-        """
-        return (
-            self.pomo_time.value(),
-            self.rest_time.value(),
-            self.chk_auto_next.isChecked(),
-            self.chk_auto_break.isChecked()
-        )
-
-
-class VolumeSettingDialog(QDialog):
-    def __init__(self, parent=None,
-                 initial_bgm_volume=20, initial_sfx_volume=50):
-        super().__init__(parent)
-
-        # ウィジェットを縦に並べる
-        layout = QVBoxLayout(self)
-
-        # ---------------------------------------------------------------------
-        # 効果音用
-        # ---------------------------------------------------------------------
-        self.sfx_volume_label = QLabel(f"効果音の音量: {initial_sfx_volume}%")
-        self.sfx_volume_label.setStyleSheet("""
-                background-color: #404040;
-                color: #ffffff;
-            """)
-        self.sfx_volume_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.sfx_volume_label)
-
-        # 効果音用音量調整スライダー
-        self.sfx_slider = QSlider(Qt.Orientation.Horizontal)
-        self.sfx_slider.setRange(0, 100)
-        self.sfx_slider.setValue(initial_sfx_volume)
-        layout.addWidget(self.sfx_slider)
-
-        # ---------------------------------------------------------------------
-        # BGM用
-        # ---------------------------------------------------------------------
-        self.bgm_volume_label = QLabel(f"BGMの音量: {initial_bgm_volume}%")
-        self.bgm_volume_label.setStyleSheet("""
-                background-color: #404040;
-                color: #ffffff;
-            """)
-        self.bgm_volume_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.bgm_volume_label)
-
-        # BGM音量調整スライダー
-        self.bgm_slider = QSlider(Qt.Orientation.Horizontal)
-        self.bgm_slider.setRange(0, 100)
-        self.bgm_slider.setValue(initial_bgm_volume)
-        layout.addWidget(self.bgm_slider)
-
-        # ---------------------------------------------------------------------
-        # スライダーの値が変更されたらラベルを更新
-        # ---------------------------------------------------------------------
-        self.sfx_slider.valueChanged.connect(
-            lambda value: self.sfx_volume_label.setText(f"効果音の音量: {value}%")
-        )
-        self.bgm_slider.valueChanged.connect(
-            lambda value: self.bgm_volume_label.setText(f"BGMの音量: {value}%")
-        )
-
-        # ---------------------------------------------------------------------
-        # OK/Cancelボタン
-        # ---------------------------------------------------------------------
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok |
-            QDialogButtonBox.StandardButton.Cancel
-        )
-        buttons.setStyleSheet("color: #ffffff;")
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
-
-    def values(self):
-        """効果音の音量とBGMの音量を返す
-
-        Returns:
-            self.sfx_slider.value() (int): 効果音の音量
-            self.bgm_slider.value() (int): BGMの音量
-        """
-        return (self.sfx_slider.value(), self.bgm_slider.value())
+from utils import resource_path
+from .VolumeSetting import VolumeSettingDialog
+from .TimerSetting import TimerSettingDialog
 
 
 class PomodoroWidget(QWidget):
@@ -402,16 +228,20 @@ class PomodoroWidget(QWidget):
 
         # タスク更新ボタン
         self.refresh_task_btn = QPushButton("更新")
-        self.refresh_task_btn.setFixedSize(60, 30)
         self.refresh_task_btn.setStyleSheet("""
             QPushButton {
-                background-color: #444;
-                color: #ddd;
-                border: 1px solid #666;
-                border-radius: 4px;
+                font-size: 12px;
+                background-color: #222;      /* ボタン背景色 */
+                color: #fff;                 /* 文字色 */
+                border: none;                /* デフォルトの枠線を消す */
+                border-radius: 16px;         /* 角の丸み(px) */
+                padding: 5px;
             }
             QPushButton:hover {
-                background-color: #555;
+                background-color: #007DFF;
+            }
+            QPushButton:pressed {
+                background-color: #333;
             }
         """)
         self.refresh_task_btn.clicked.connect(self._refresh_tasks)

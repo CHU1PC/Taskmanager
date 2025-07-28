@@ -18,15 +18,18 @@
 ### 目標時間を決めることができます
 <img src="readme_img/goal_time.png" alt="目標時間" style="width: 50%; height: auto;"/>
 
-### 右のタスク選択からタスクを選択ことができます（これは下に書いてある、タスクマネージャーでタスクを追加したら使える）
+### 左のタスク選択からタスクを選択ことができます（これは下に書いてある、タスクマネージャーでタスクを追加したら使える）
 ### タスクを選択して、タイマーを開始することでタスクマネージャの方で色々な情報を管理できます
 <img src="readme_img/task_select.png" alt="タスクの選択" style="width: 50%; height: auto;"/>
 
 ### 左の欄の上から2つ目のタスクを押すとタスクマネージャーに移動します。
 
-### タスクを追加するためには画面中央下にあるタスク追加欄に文字列を記入して、追加ボタンを押すとタスクを追加できます
+### タスクを追加するためには画面中央上にあるタスク追加欄に文字列を記入して、追加ボタンを押すとタスクを追加できます
 <img src="readme_img/task_add_btn.png" alt="タスクの追加ボタン" style="width: 50%; height: auto;"/>
 <img src="readme_img/task_task_sel.png" alt="タスク追加後の場所" style="width: 50%; height: auto;"/>
+
+### タスクを追加する際には緊急度と重要度を選択します。　設定すると、タスクの並び替えが行えます
+<img src="readme_img/urgency.png" alt="タスクの緊急度と重要度の選択" style="width: 50%; height: auto;">
 
 ### タスクを選択すると、右下に各タスクの今までの総合計勉強時間、今日の勉強時間、昨日の勉強時間を表示できる
 <img src="readme_img/task_time.png" alt="各タスクの情報" style="width: 50%; height: auto;">
@@ -36,6 +39,31 @@
 
 ### 左の2つのボタンからその日の合計勉強時間の編集と0にリセットすることができます
 <img src="readme_img/sum_time_edit.png" alt="その日の合計時間の編集" style="width: 50%; height: auto;"/>
+
+### 保存先ファイルであったり、保存されているものを見るためには次のコードを実行してください
+```bash
+python3 -c "
+from PyQt6.QtCore import QSettings
+import os
+
+settings = QSettings('CHU1PC', 'TaskManagerApp')
+print('設定ファイルの場所:')
+print(settings.fileName())
+print()
+
+if os.path.exists(settings.fileName()):
+    print('ファイルサイズ:', os.path.getsize(settings.fileName()), 'bytes')
+    print('最終更新:', os.path.getmtime(settings.fileName()))
+else:
+    print('設定ファイルはまだ存在しません')
+
+print()
+print('保存される設定キー:')
+settings.beginGroup('')
+for key in settings.allKeys():
+    print(f'  {key}: {settings.value(key)}')
+"
+```
 
 ## もしzipファイルが動かない場合は制作者に連絡するか、自身でローカルにcloneしていただき次のコマンドをカレントディレクトリをGUIにしてから実行してください
 

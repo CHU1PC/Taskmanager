@@ -6,8 +6,8 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QListWidget,
 from PyQt6.QtCore import QSize
 from PyQt6.QtGui import QIcon
 
-from pomo import PomodoroWidget
-from task import TasksWidget
+from pomodoro_screen import PomodoroWidget
+from task_screen import TasksWidget
 
 
 def resource_path(rel_path: str) -> str:
@@ -25,7 +25,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Time manager App")
         self.setStyleSheet("background-color: #282828")
-        self.resize(800, 500)
+        self.resize(1000, 700)
 
         central = QWidget(self)
         main_layout = QHBoxLayout(central)

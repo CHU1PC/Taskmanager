@@ -1,0 +1,1 @@
+from .Pomodoro import PomodoroWidget  # type: ignore # noqa

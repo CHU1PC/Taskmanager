@@ -124,21 +124,19 @@ class TasksWidget(QWidget):
         self.task_sort.setStyleSheet("""
             QComBox {
                 background-color: #333;
-                color: #ffffff;
+                color: #ddd:
                 border: 1px solid #555;
                 border-radius: 4px;
                 padding: 5px;
             }
             QComBox::drop-down {
-                border: 1px;
-                background-color: #333;
-                color: #ffffff;
+                border: none;
             }
-            QComBox::down-arrow {
-                background-color: #333;
-                color: #ffffff;
+            QComBox:down-arrow {
+                color: #ddd;
             }
         """)
+        self.task_sort.setStyleSheet("color: #ffffff;")
         self.task_sort.addItem("特になし")
         self.task_sort.addItem("グループ")
         self.task_sort.addItem("緊急度順")
@@ -411,41 +409,30 @@ class TasksWidget(QWidget):
             QMessageBox {
                 background-color: #404040;
                 color: #ffffff;
-                border: 1px solid #555;
             }
-            QMessageBox QLabel {
-                background-color: transparent;
+            QLabel {
+                background-color: #404040;
                 color: #ffffff;
                 font-size: 14px;
-                padding: 10px;
             }
-            QMessageBox QPushButton {
+            QPushButton {
                 background-color: #555;
-                color: #ffffff;
-                border: 1px solid #666;
+                color: #fff;
                 border-radius: 4px;
-                padding: 8px 16px;
+                padding: 8px;
                 min-width: 80px;
-                font-size: 12px;
             }
-            QMessageBox QPushButton:hover {
+            QPushButton:hover {
                 background-color: #666;
-                border-color: #777;
             }
-            QMessageBox QPushButton:pressed {
-                background-color: #444;
-            }
-            QMessageBox QPushButton[text="はい"],
-            QMessageBox QPushButton[text="Yes"] {
+            QPushButton:contains("Yes") {
                 background-color: #d63384;
-                border-color: #e91e63;
             }
-            QMessageBox QPushButton[text="はい"]:hover,
-            QMessageBox QPushButton[text="Yes"]:hover {
+            QPushButton:contains("Yes"):hover {
                 background-color: #e91e63;
-                border-color: #f8285a;
             }
         """)
+        msg_box.setStyleSheet("color: #ffffff;")
 
         reply = msg_box.exec()
 

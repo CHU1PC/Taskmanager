@@ -228,16 +228,20 @@ class PomodoroWidget(QWidget):
 
         # タスク更新ボタン
         self.refresh_task_btn = QPushButton("更新")
-        self.refresh_task_btn.setFixedSize(60, 30)
         self.refresh_task_btn.setStyleSheet("""
             QPushButton {
-                background-color: #444;
-                color: #ddd;
-                border: 1px solid #666;
-                border-radius: 4px;
+                font-size: 12px;
+                background-color: #222;      /* ボタン背景色 */
+                color: #fff;                 /* 文字色 */
+                border: none;                /* デフォルトの枠線を消す */
+                border-radius: 16px;         /* 角の丸み(px) */
+                padding: 5px;
             }
             QPushButton:hover {
-                background-color: #555;
+                background-color: #007DFF;
+            }
+            QPushButton:pressed {
+                background-color: #333;
             }
         """)
         self.refresh_task_btn.clicked.connect(self._refresh_tasks)

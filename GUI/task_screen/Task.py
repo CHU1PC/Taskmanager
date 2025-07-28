@@ -124,7 +124,7 @@ class TasksWidget(QWidget):
         self.task_sort.setStyleSheet("""
             QComBox {
                 background-color: #333;
-                color: #ddd;
+                color: #ffffff;
                 border: 1px solid #555;
                 border-radius: 4px;
                 padding: 5px;
@@ -132,12 +132,12 @@ class TasksWidget(QWidget):
             QComBox::drop-down {
                 border: none;
                 background-color: #333;
-                color: #ddd;
+                color: #ffffff;
             }
             QComBox::down-arrow {
                 color: #ddd;
                 background-color: #333;
-                color: #ddd;
+                color: #ffffff;
             }
         """)
         self.task_sort.addItem("特になし")

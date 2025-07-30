@@ -1,14 +1,7 @@
-import datetime
-
-from PyQt6.QtWidgets import (QDialog, QSpinBox, QVBoxLayout, QHBoxLayout,
-                             QLabel, QWidget, QGridLayout, QPushButton,
-                             QSizePolicy, QProgressBar, QFrame,
-                             QSystemTrayIcon, QComboBox, QScrollArea,
-                             QListWidget, QListWidgetItem
+from PyQt6.QtWidgets import (QVBoxLayout, QLabel, QWidget, QGridLayout,
+                             QListWidget
                              )
-from PyQt6.QtCore import Qt, QSettings, QTimer, QUrl
-from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
-from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import Qt, QSettings
 
 
 class UrgencyWidget(QWidget):

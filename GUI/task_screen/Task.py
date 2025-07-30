@@ -107,7 +107,7 @@ class TasksWidget(QWidget):
         # 緊急度×重要度の4つの分類を追加
         self.urgency_select.addItem("📋 通常", "normal")
         self.urgency_select.addItem("🔥 緊急×重要", "urgent_important")
-        self.urgency_select.addItem("⚡ 緊急×非重要", "urgent_not_important")
+        self.urgency_select.addItem("⚡️ 緊急×非重要", "urgent_not_important")
         self.urgency_select.addItem("💡 非緊急×重要", "not_urgent_important")
         self.urgency_select.addItem("📝 非緊急×非重要", "not_urgent_not_important")
 
@@ -118,6 +118,7 @@ class TasksWidget(QWidget):
         self.task_list.customContextMenuRequested.connect(
             self.show_context_menu)
         self.task_list.setStyleSheet("color: #ffffff;")
+        self.task_list.itemChanged.connect(self._on_item_changed)
 
         # タスク表示並び替え変更用ボタン
         self.task_sort = QComboBox()
@@ -509,6 +510,11 @@ class TasksWidget(QWidget):
         if item:
             item.setData(Qt.ItemDataRole.UserRole,
                          self.detail_edit.toPlainText())
+        self._save_tasks()
+
+    def _on_item_changed(self, item):
+        """アイテムが変更された時（チェック状態含む）に自動保存"""
+        self.sort_tasks()
         self._save_tasks()
 
     def update_study_time_display(self):

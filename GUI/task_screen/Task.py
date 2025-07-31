@@ -9,6 +9,7 @@ from PyQt6.QtGui import QAction
 from PyQt6.QtCore import Qt, QSettings
 
 from .TaskEdit import TaskEditDialog
+from .Taskdelete import TaskDeleteDialog
 
 
 class TasksWidget(QWidget):
@@ -397,87 +398,40 @@ class TasksWidget(QWidget):
         """アイテムを削除"""
         task_name = item.text()
 
-        # 削除確認ダイアログを表示
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle("タスクの削除")
-        msg_box.setText(f"タスク「{task_name}」を削除しますか？")
-        msg_box.setInformativeText("勉強時間の記録も一緒に削除されます。\nこの操作は取り消せません。")
-        msg_box.setIcon(QMessageBox.Icon.Warning)
-        msg_box.setStandardButtons(
-            QMessageBox.StandardButton.Yes |
-            QMessageBox.StandardButton.No
+        # ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+        # ▼▼▼ QMessageBox を使っていた部分を、以下に置き換えます ▼▼▼
+        # ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+        dialog = TaskDeleteDialog(
+            title="タスクの削除",
+            text=f"タスク「{task_name}」を本当に削除しますか？",
+            informative_text="勉強時間の記録も一緒に削除されます。この操作は取り消せません。",
+            parent=self
         )
-        msg_box.setDefaultButton(QMessageBox.StandardButton.No)
 
-        # ダークテーマスタイル
-        msg_box.setStyleSheet("""
-            QMessageBox {
-                background-color: #404040;
-                color: #ffffff;
-            }
-            QLabel {
-                background-color: #404040;
-                color: #ffffff;
-                font-size: 14px;
-            }
-            QPushButton {
-                background-color: #555;
-                color: #fff;
-                border-radius: 4px;
-                padding: 8px;
-                min-width: 80px;
-            }
-            QPushButton:hover {
-                background-color: #666;
-            }
-            QPushButton:contains("Yes") {
-                background-color: #d63384;
-            }
-            QPushButton:contains("Yes"):hover {
-                background-color: #e91e63;
-            }
-        """)
-        msg_box.setStyleSheet("color: #ffffff;")
+        # ダイアログを実行し、結果（どのボタンが押されたか）を取得します
+        # "はい"が押されたら Accepted、"キャンセル"なら Rejected が返ります
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            # 「はい」が押された場合の処理（この部分は変更なし）
+            task_study_records = self.settings.value("task_study_time", {})
+            if task_name in task_study_records:
+                deleted_task_time = task_study_records[task_name]
+                study_records = self.settings.value("study_time", {})
+                for date, minutes in deleted_task_time.items():
+                    if date in study_records:
+                        study_records[date] -= minutes
+                        if study_records[date] <= 0:
+                            del study_records[date]
+                self.settings.setValue("study_time", study_records)
+                del task_study_records[task_name]
+                self.settings.setValue("task_study_time", task_study_records)
 
-        reply = msg_box.exec()
+            row = self.task_list.row(item)
+            self.task_list.takeItem(row)
 
-        if reply != QMessageBox.StandardButton.Yes:
-            return  # キャンセルされた場合は削除しない
-
-        # そのタスクの勉強時間記録を削除
-        task_study_records = self.settings.value("task_study_time", {})
-        if task_name in task_study_records:
-            # 削除するタスクの勉強時間を取得
-            deleted_task_time = task_study_records[task_name]
-
-            # 全体の勉強時間記録からそのタスクの時間を差し引く
-            study_records = self.settings.value("study_time", {})
-            for date, minutes in deleted_task_time.items():
-                if date in study_records:
-                    study_records[date] -= minutes
-                    # 0以下になった場合は削除
-                    if study_records[date] <= 0:
-                        del study_records[date]
-
-            # 更新された全体勉強時間を保存
-            self.settings.setValue("study_time", study_records)
-
-            # タスク別勉強時間からも削除
-            del task_study_records[task_name]
-            self.settings.setValue("task_study_time", task_study_records)
-
-        # リストからアイテムを削除
-        row = self.task_list.row(item)
-        self.task_list.takeItem(row)
-
-        # 詳細エディタもクリア
-        self.detail_edit.clear()
-
-        # タスクデータを保存
-        self._save_tasks()
-
-        # 勉強時間表示を更新
-        self.update_study_time_display()
+            self.detail_edit.clear()
+            self._save_tasks()
+            self.update_study_time_display()
 
     def on_item_selected(self, current, previous):
         if current is None:
@@ -612,13 +566,38 @@ class TasksWidget(QWidget):
 
     def _reset_today_total_time(self):
         """今日の総勉強時間をリセット"""
-        reply = QMessageBox.question(
-            self,
-            "勉強時間のリセット",
-            "今日の総勉強時間を0にリセットしますか？\n"
-            "この操作は取り消せません。",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
+        msg_box = QMessageBox(self)
+
+        msg_box.setIcon(QMessageBox.Icon.Question)
+        msg_box.setWindowTitle("勉強時間のリセット")
+        msg_box.setText("今日の総勉強時間を0にリセットしますか？")
+        msg_box.setInformativeText("この操作は取り消せません。")
+        msg_box.setStandardButtons(QMessageBox.StandardButton.Yes |
+                                   QMessageBox.StandardButton.No)
+        msg_box.setDefaultButton(QMessageBox.StandardButton.No)
+
+        # スタイルを直接設定
+        msg_box.setStyleSheet("""
+            QMessageBox {
+                background-color: #282828;
+                color: #ffffff;
+            }
+            QLabel {
+                color: #ffffff;
+            }
+            QPushButton {
+                background-color: #555;
+                color: #fff;
+                border-radius: 4px;
+                padding: 8px;
+                min-width: 80px;
+            }
+            QPushButton:hover {
+                background-color: #666;
+            }
+        """)
+
+        reply = msg_box.exec()
 
         if reply == QMessageBox.StandardButton.Yes:
             # 今日の勉強時間を削除

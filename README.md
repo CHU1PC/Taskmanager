@@ -37,33 +37,39 @@
 ### タスク選択画面で右クリックを押すと編集と削除を行えます
 <img src="readme_img/task_task_name_edit.png" alt="タスクの編集と削除" style="width: 50%; height: auto/"/>
 
-### 左の2つのボタンからその日の合計勉強時間の編集と0にリセットすることができます
+### 左のボタンから全タスクの今までの合計勉強時間を0にリセットすることができます
 <img src="readme_img/sum_time_edit.png" alt="その日の合計時間の編集" style="width: 50%; height: auto;"/>
 
-### 保存先ファイルであったり、保存されているものを見るためには次のコードを実行してください
+
+### 
+
+#　新しいバージョンをダウンロードする前にやっていただきたいこと
+### 新しいバージョンに変更した際に今までに追加したデータが消えてしまう可能性があります、そのためバックアップをとっていただきたいです。
+### バックアップの仕方は
+### 1. Pythonをインストールする, これはバージョンが3.12.9だと望ましいです
+### 2.ターミナルで次のコマンドを打つ
+```bash
+pip install PyQt6
+```
+### 3.ターミナルで次のコマンドを打つ
 ```bash
 python3 -c "
 from PyQt6.QtCore import QSettings
 import os
 
 settings = QSettings('CHU1PC', 'TaskManagerApp')
-print('設定ファイルの場所:')
-print(settings.fileName())
-print()
 
-if os.path.exists(settings.fileName()):
-    print('ファイルサイズ:', os.path.getsize(settings.fileName()), 'bytes')
-    print('最終更新:', os.path.getmtime(settings.fileName()))
-else:
+if not os.path.exists(settings.fileName()):
     print('設定ファイルはまだ存在しません')
 
-print()
-print('保存される設定キー:')
 settings.beginGroup('')
 for key in settings.allKeys():
     print(f'  {key}: {settings.value(key)}')
 "
 ```
+### もし設定ファイルはまだ存在しませんと表示されたらインストールしてください
+### コマンドを打った後にターミナル上に出力される tasks: []の[]の部分をコピーして, restore.pyのtasks = []の[]
+<img src="readme_img/restore.png" alt="taskの復元よう画像" style="width: 50%; height: auto;"/>
 
 ## もしzipファイルが動かない場合は制作者に連絡するか、自身でローカルにcloneしていただき次のコマンドをカレントディレクトリをGUIにしてから実行してください
 

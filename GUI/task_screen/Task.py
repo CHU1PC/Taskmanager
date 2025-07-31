@@ -119,6 +119,11 @@ class TasksWidget(QWidget):
             self.show_context_menu)
         self.task_list.setStyleSheet("color: #ffffff;")
         self.task_list.itemChanged.connect(self._on_item_changed)
+        self.task_list.currentItemChanged.connect(self.on_item_selected)
+        for i in range(self.task_list.count()):
+            item = self.task_list.item(i)
+            item.setData(Qt.ItemDataRole.UserRole + 2, item.checkState())
+            item.setData(Qt.ItemDataRole.UserRole + 3, item.text())
 
         # タスク表示並び替え変更用ボタン
         self.task_sort = QComboBox()
@@ -159,7 +164,6 @@ class TasksWidget(QWidget):
         self.detail_edit.setPlaceholderText("タスクを選択すると、ここで詳細を編集できます")
         self.detail_edit.setStyleSheet("color: #ffffff;")
 
-        self.task_list.currentItemChanged.connect(self.on_item_selected)
         self.detail_edit.textChanged.connect(self.on_detail_changed)
 
         # 緊急度重要度用
@@ -506,16 +510,52 @@ class TasksWidget(QWidget):
         return priority_map.get(priority_data, "📖 普通")
 
     def on_detail_changed(self):
+        """
+        詳細テキスト編集時は itemChanged をブロックして、
+        save() のみ実行する
+        """
         item = self.task_list.currentItem()
-        if item:
-            item.setData(Qt.ItemDataRole.UserRole,
-                         self.detail_edit.toPlainText())
+        if not item:
+            return
+
+        # 1) itemChanged シグナルをブロック
+        self.task_list.blockSignals(True)
+
+        # 2) ユーザーデータとして詳細を保存
+        item.setData(Qt.ItemDataRole.UserRole,
+                     self.detail_edit.toPlainText())
+
+        # 3) block 解除
+        self.task_list.blockSignals(False)
+
+        # 4) 保存のみ
         self._save_tasks()
 
-    def _on_item_changed(self, item):
-        """アイテムが変更された時（チェック状態含む）に自動保存"""
-        self.sort_tasks()
-        self._save_tasks()
+    def _on_item_changed(self, item: QListWidgetItem):
+        """チェック変更なら sort&save、テキスト変更なら save のみ"""
+        # 1) 以前の状態を取得
+        old_check = item.data(Qt.ItemDataRole.UserRole + 2)
+        old_text = item.data(Qt.ItemDataRole.UserRole + 3)
+
+        # 2) 今の状態を取得
+        new_check = item.checkState()
+        new_text = item.text()
+
+        # 3) 変化のタイプで振り分け
+        if new_check != old_check:
+            # チェックが変わったとき
+            self.sort_tasks()
+            self._save_tasks()
+        elif new_text != old_text:
+            # テキストが変わったとき
+            self._save_tasks()
+        else:
+            # detail用の setData 等、関係ない変更
+            return
+
+        # 4) 新しい状態を保存して次回に備える
+        item.setData(Qt.ItemDataRole.UserRole + 2, new_check)
+        item.setData(Qt.ItemDataRole.UserRole + 3, new_text)
 
     def update_study_time_display(self):
         """勉強時間表示を更新"""

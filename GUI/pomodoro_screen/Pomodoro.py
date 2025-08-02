@@ -7,7 +7,6 @@ from PyQt6.QtWidgets import (QDialog, QSpinBox, QVBoxLayout, QHBoxLayout,
                              )
 from PyQt6.QtCore import Qt, QSettings, QTimer, QUrl
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
-from PyQt6.QtGui import QIcon
 
 
 from utils import resource_path
@@ -75,12 +74,12 @@ class PomodoroWidget(QWidget):
         # 通知用
         # ---------------------------------------------------------------------
         self.study_announce = \
-            QSystemTrayIcon(QIcon(resource_path("img/start_study")), self)
+            QSystemTrayIcon(self)
         self.study_announce.setToolTip("Time Manager APP")
         self.study_announce.setVisible(True)
 
         self.rest_announce = \
-            QSystemTrayIcon(QIcon(resource_path("img/start_rest")), self)
+            QSystemTrayIcon(self)
         self.rest_announce.setToolTip("Time Manager APP")
         self.rest_announce.setVisible(True)
 

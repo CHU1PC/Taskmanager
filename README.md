@@ -2,7 +2,8 @@
 ---
 ## バクが見つかったり追加して欲しい機能がありましたら以下のメールアドレス、またはDMのほうで連絡をいただけると幸いです
 raikyu70@gmail.com
-X: CHU1PC
+X: https://x.com/tad_chu
+
 ---
 ## 使い方
 ### releaseから最新のversionのzipファイルをダウンロードしてください

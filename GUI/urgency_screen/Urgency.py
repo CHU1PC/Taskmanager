@@ -13,8 +13,8 @@ class UrgencyWidget(QWidget):
         # タスクリストウィジェットを属性として保持
         self.top_left_list = None
         self.top_right_list = None
-        self.buttom_left_list = None
-        self.buttom_right_list = None
+        self.bottom_left_list = None
+        self.bottom_right_list = None
 
         self._setup_ui()
 
@@ -50,7 +50,7 @@ class UrgencyWidget(QWidget):
         self.top_right.addWidget(urgen_high_impo_low)
 
         # 左下の画面
-        self.buttom_left = QVBoxLayout()
+        self.bottom_left = QVBoxLayout()
         urgen_low_impo_high = QLabel("💡 非緊急×重要")
         urgen_low_impo_high.setAlignment(Qt.AlignmentFlag.AlignTop)
         urgen_low_impo_high.setStyleSheet("""
@@ -61,10 +61,10 @@ class UrgencyWidget(QWidget):
                 font-size: 20px
             }
         """)
-        self.buttom_left.addWidget(urgen_low_impo_high)
+        self.bottom_left.addWidget(urgen_low_impo_high)
 
         # 右下の画面
-        self.buttom_right = QVBoxLayout()
+        self.bottom_right = QVBoxLayout()
         urgen_low_impo_low = QLabel("📝 非緊急×非重要")
         urgen_low_impo_low.setAlignment(Qt.AlignmentFlag.AlignTop)
         urgen_low_impo_low.setStyleSheet("""
@@ -75,7 +75,7 @@ class UrgencyWidget(QWidget):
                 font-size: 20px
             }
         """)
-        self.buttom_right.addWidget(urgen_low_impo_low)
+        self.bottom_right.addWidget(urgen_low_impo_low)
 
         # タスクリストを作成（一度だけ）
         self._create_task_lists()
@@ -83,8 +83,8 @@ class UrgencyWidget(QWidget):
 
         main_layout.addLayout(self.top_left, 0, 0)
         main_layout.addLayout(self.top_right, 0, 1)
-        main_layout.addLayout(self.buttom_left, 1, 0)
-        main_layout.addLayout(self.buttom_right, 1, 1)
+        main_layout.addLayout(self.bottom_left, 1, 0)
+        main_layout.addLayout(self.bottom_right, 1, 1)
 
     def _create_task_lists(self):
         """タスクリストウィジェットを作成（一度だけ実行）"""
@@ -96,21 +96,21 @@ class UrgencyWidget(QWidget):
             self.top_right_list = QListWidget()
             self.top_right.addWidget(self.top_right_list)
 
-        if not self.buttom_left_list:
-            self.buttom_left_list = QListWidget()
-            self.buttom_left.addWidget(self.buttom_left_list)
+        if not self.bottom_left_list:
+            self.bottom_left_list = QListWidget()
+            self.bottom_left.addWidget(self.bottom_left_list)
 
-        if not self.buttom_right_list:
-            self.buttom_right_list = QListWidget()
-            self.buttom_right.addWidget(self.buttom_right_list)
+        if not self.bottom_right_list:
+            self.bottom_right_list = QListWidget()
+            self.bottom_right.addWidget(self.bottom_right_list)
 
     def _update_tasks(self):
         """タスクの内容のみを更新"""
         # 既存の内容をクリア
         self.top_left_list.clear()
         self.top_right_list.clear()
-        self.buttom_left_list.clear()
-        self.buttom_right_list.clear()
+        self.bottom_left_list.clear()
+        self.bottom_right_list.clear()
 
         # 最新のタスクデータを取得
         task_settings = QSettings("CHU1PC", "TaskManagerApp")
@@ -128,9 +128,9 @@ class UrgencyWidget(QWidget):
             elif task_label == "urgent_not_important":
                 self.top_right_list.addItem(task_text)
             elif task_label == "not_urgent_important":
-                self.buttom_left_list.addItem(task_text)
+                self.bottom_left_list.addItem(task_text)
             else:
-                self.buttom_right_list.addItem(task_text)
+                self.bottom_right_list.addItem(task_text)
 
     def refresh_tasks(self):
         """外部から呼び出してタスクを更新"""

@@ -652,7 +652,8 @@ class PomodoroWidget(QWidget):
         # 未完了のタスクのみを追加
         for task_entry in stored_tasks:
             task_text = task_entry.get("text", "")
-            if task_text:
+            task_check = task_entry.get("checked", False)
+            if task_text and not task_check:
                 self.task_combo.addItem(task_text)
 
         # 前の選択を復元（可能なら）

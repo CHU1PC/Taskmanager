@@ -3,7 +3,7 @@ import datetime
 from PyQt6.QtWidgets import (QDialog, QSpinBox, QVBoxLayout, QHBoxLayout,
                              QLabel, QWidget, QGridLayout, QPushButton,
                              QSizePolicy, QProgressBar, QFrame,
-                             QSystemTrayIcon, QComboBox
+                             QSystemTrayIcon, QComboBox, QInputDialog
                              )
 from PyQt6.QtCore import Qt, QSettings, QTimer, QUrl
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
@@ -388,6 +388,8 @@ class PomodoroWidget(QWidget):
             QUrl.fromLocalFile(resource_path("audio/beep2.mp3"))
         self.break_end_sound = \
             QUrl.fromLocalFile(resource_path("audio/beep1.mp3"))
+        self.error_sound = \
+            QUrl.fromLocalFile(resource_path("audio/error.mp3"))
 
         # 勉強中音声
         self.bgm_player = QMediaPlayer()
@@ -572,6 +574,11 @@ class PomodoroWidget(QWidget):
 
         self.bgm_player.stop()
 
+        # 作業フェーズ完了時にセット数加算
+        if not self.is_break:
+            self.sets_completed += 1
+            self.settings.setValue("history/total_sets", self.sets_completed)
+
         # フェーズ終了時に音を鳴らす
         if self.is_break:
             self.player.setSource(self.break_end_sound)
@@ -579,24 +586,27 @@ class PomodoroWidget(QWidget):
                 "休憩終了",
                 "休憩時間が終了しました! がんばりましょう!!!!",
                 QSystemTrayIcon.MessageIcon.Information,
-                5000
+                10000
             )
+            self.player.play()
         else:
-            self.player.setSource(self.work_end_sound)
-            self.study_announce.showMessage(
-                "ポモドーロ完了",
-                "作業時間が終了しました! お疲れ様です",
-                QSystemTrayIcon.MessageIcon.Information,
-                5000
-            )
-
-        self.player.play()
-
-        # 作業フェーズ完了時にセット数加算
-        if not self.is_break:
-            self.sets_completed += 1
-            self.settings.setValue("history/total_sets", self.sets_completed)
-
+            if not self.selected_task:
+                self.player.setSource(self.error_sound)
+                self.study_announce.showMessage(
+                    "タスクが選択されていません!!!!",
+                    "タスクが選択されていないため、今選択してください",
+                    QSystemTrayIcon.MessageIcon.Warning,
+                    10000
+                )
+            else:
+                self.player.setSource(self.work_end_sound)
+                self.study_announce.showMessage(
+                    "ポモドーロ完了",
+                    "作業時間が終了しました! お疲れ様です",
+                    QSystemTrayIcon.MessageIcon.Information,
+                    10000
+                )
+            self.player.play()
             self._record_study_time(self.default_minutes)
 
         # フェーズ切替
@@ -614,27 +624,52 @@ class PomodoroWidget(QWidget):
     def _record_study_time(self, minutes):
         today = datetime.date.today().isoformat()
 
+        if not self.selected_task:
+            stored_tasks = self.task_settings.value("tasks", [])
+
+            tasks = []
+            for task in stored_tasks:
+                name = task.get("text", "")
+                check = task.get("checked", False)
+                if not check and name:
+                    tasks.append(name)
+            selected, ok = QInputDialog.getItem(
+                self, "タスク選択", "記録するタスクを選んでください:", tasks, 0, False
+            )
+            if not ok or not selected:
+                return False
+
+            idx = self.task_combo.findText(selected)
+            if idx >= 0:
+                # シグナルで _on_task_changed が呼ばれ self.selected_task が更新される
+                self.task_combo.setCurrentIndex(idx)
+            else:
+                # 念のため直接セット
+                self.selected_task = selected
+                self.settings.setValue("current_task", selected)
+                disp = selected if len(selected) <= 20 else selected[:17] + "..."
+                self.current_task_label.setText(f"実行中: {disp}")
+
         study_records = self.task_settings.value("study_time", {})
 
         # 今日の記録を更新
         if today not in study_records:
             study_records[today] = 0
         study_records[today] += minutes
-
-        if self.selected_task:
-            task_study_records = \
-                self.task_settings.value("task_study_time", {})
-            if self.selected_task not in task_study_records:
-                task_study_records[self.selected_task] = {}
-            if today not in task_study_records[self.selected_task]:
-                task_study_records[self.selected_task][today] = 0
-            task_study_records[self.selected_task][today] += minutes
-
-            # タスク別勉強時間を保存
-            self.task_settings.setValue("task_study_time", task_study_records)
-
-        # 全体の勉強時間記録を保存
         self.task_settings.setValue("study_time", study_records)
+
+        task_study_records = \
+            self.task_settings.value("task_study_time", {})
+        if self.selected_task not in task_study_records:
+            task_study_records[self.selected_task] = {}
+        if today not in task_study_records[self.selected_task]:
+            task_study_records[self.selected_task][today] = 0
+        task_study_records[self.selected_task][today] += minutes
+
+        # タスク別勉強時間を保存
+        self.task_settings.setValue("task_study_time", task_study_records)
+
+        return True
 
     def _refresh_tasks(self):
         """タスクリストを更新"""
@@ -652,7 +687,8 @@ class PomodoroWidget(QWidget):
         # 未完了のタスクのみを追加
         for task_entry in stored_tasks:
             task_text = task_entry.get("text", "")
-            if task_text:
+            task_check = task_entry.get("checked", False)
+            if task_text and not task_check:
                 self.task_combo.addItem(task_text)
 
         # 前の選択を復元（可能なら）

@@ -209,3 +209,5 @@ __marimo__/
 # .gitignore に追加
 credentials.json
 token.pickle
+
+.DS_Store

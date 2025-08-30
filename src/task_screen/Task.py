@@ -32,8 +32,8 @@ class TasksWidget(QWidget):
         # ---------------------------------------------------------------------
 
         # 本日の総勉強時間
-        self.today_sum_time = QLabel("本日の総勉強時間: 0時間00分")
-        self.today_sum_time.setStyleSheet("""
+        self.all_sum_time = QLabel("全タスクの総勉強時間: 0時間00分")
+        self.all_sum_time.setStyleSheet("""
             color: #ffffff;
             background-color: #333;
             border-radius: 5px;
@@ -255,7 +255,7 @@ class TasksWidget(QWidget):
         study_layout.addWidget(self.today_study_label, 1, 0)
         study_layout.addWidget(self.yesterday_study_label, 1, 1)
 
-        left_layout.addWidget(self.today_sum_time)
+        left_layout.addWidget(self.all_sum_time)
         left_layout.addWidget(self.reset_time_btn)
         left_layout.addStretch()
 
@@ -374,25 +374,38 @@ class TasksWidget(QWidget):
             return
 
         values = dialog.get_values()
-
         if not values["name"]:
             QMessageBox.warning(self, "エラー", "タスク名を入力してください")
             return
 
-        item.setText(values["name"])
+        old_name = item.text()
+        new_name = values["name"]
+
+        # --- ここで task_study_time を旧名→新名へマイグレーション ---
+        if new_name != old_name:
+            task_study_records = self.settings.value("task_study_time", {})
+            if (isinstance(task_study_records, dict) and
+               old_name in task_study_records):
+                # 既存の新名データがあればマージ
+                merged = task_study_records.get(new_name, {})
+                for date, minutes in task_study_records[old_name].items():
+                    merged[date] = merged.get(date, 0) + minutes
+                task_study_records[new_name] = merged
+                del task_study_records[old_name]
+                self.settings.setValue("task_study_time", task_study_records)
+
+        # 表示と属性の更新
+        item.setText(new_name)
         item.setData(Qt.ItemDataRole.UserRole + 1, values["priority_data"])
 
-        # 緊急度表示を更新（編集されたアイテムが選択されている場合）
         if self.task_list.currentItem() == item:
-            priority_display = self._get_priority_display_text(
-                values["priority_data"])
+            priority_display = \
+                self._get_priority_display_text(values["priority_data"])
             self.urgency.setText(f"緊急度, 重要度:\n{priority_display}")
-
-        # 詳細欄の緊急度情報は削除せず、現在の内容をそのまま保持
-        # （ユーザーが編集した内容を保護）
 
         self.sort_tasks()
         self._save_tasks()
+        self.update_study_time_display()
 
     def delete_task(self, item: QListWidgetItem):
         """アイテムを削除"""
@@ -514,7 +527,6 @@ class TasksWidget(QWidget):
     def update_study_time_display(self):
         """勉強時間表示を更新"""
         # 勉強時間記録を取得
-        study_records = self.settings.value("study_time", {})
         task_study_records = self.settings.value("task_study_time", {})
 
         # 日付の準備
@@ -558,19 +570,28 @@ class TasksWidget(QWidget):
             self.yesterday_study_label.setText(
                 f"昨日: {yesterday_hours}時間{yesterday_mins}分")
 
-        # その日の総合計勉強時間
-        today_total_minutes = sum(study_records.values())
-        total_hours, total_mins = divmod(today_total_minutes, 60)
-        self.today_sum_time.setText(
-            f"総合計: {total_hours}時間{total_mins}分")
+        # 全タスクの総合計勉強時間
+        names_in_list = set()
+        for i in range(self.task_list.count()):
+            it = self.task_list.item(i)
+            if it:
+                names_in_list.add(it.text())
+
+        all_total_minutes = 0
+        for name, per_task in task_study_records.items():
+            if name in names_in_list:
+                for time in per_task.values():
+                    all_total_minutes += time
+        total_hours, total_mins = divmod(all_total_minutes, 60)
+        self.all_sum_time.setText(f"全タスクの総合計: {total_hours}時間{total_mins}分")
 
     def _reset_today_total_time(self):
-        """今日の総勉強時間をリセット"""
+        """総勉強時間をリセット"""
         msg_box = QMessageBox(self)
 
         msg_box.setIcon(QMessageBox.Icon.Question)
         msg_box.setWindowTitle("勉強時間のリセット")
-        msg_box.setText("今日の総勉強時間を0にリセットしますか？")
+        msg_box.setText("総勉強時間を再計算しますか？")
         msg_box.setInformativeText("この操作は取り消せません。")
         msg_box.setStandardButtons(QMessageBox.StandardButton.Yes |
                                    QMessageBox.StandardButton.No)
@@ -622,7 +643,7 @@ class TasksWidget(QWidget):
             QMessageBox.information(
                 self,
                 "リセット完了",
-                "今日の総勉強時間をリセットしました。"
+                "総勉強時間をリセットしました。"
             )
 
     def sort_tasks(self):

@@ -9,12 +9,12 @@ from PyQt6.QtCore import Qt, QSettings, QTimer, QUrl
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 
 
-from utils import resource_path
-from .VolumeSetting import VolumeSettingDialog
-from .TimerSetting import TimerSettingDialog
+from app.utils import resource_path
+from app.pomodoro_screen.VolumeSetting import VolumeSettingDialog
+from app.pomodoro_screen.TimerSetting import TimerSettingDialog
 
 
-class PomodoroWidget(QWidget):
+class TimerWidget(QWidget):
     def __init__(self):
         super().__init__()
 
@@ -73,8 +73,7 @@ class PomodoroWidget(QWidget):
         # ---------------------------------------------------------------------
         # 通知用
         # ---------------------------------------------------------------------
-        self.study_announce = \
-            QSystemTrayIcon(self)
+        self.study_announce = QSystemTrayIcon(self)
         self.study_announce.setToolTip("Time Manager APP")
         self.study_announce.setVisible(True)
 

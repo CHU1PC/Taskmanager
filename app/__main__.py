@@ -12,10 +12,10 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from pomodoro_screen import PomodoroWidget
-from task_screen import TasksWidget
-from urgency_screen import UrgencyWidget
-from utils import resource_path
+from app.pomodoro_screen import PomodoroWidget
+from app.task_screen import TasksWidget
+from app.urgency_screen import UrgencyWidget
+from app.utils import resource_path
 
 
 class MainWindow(QMainWindow):

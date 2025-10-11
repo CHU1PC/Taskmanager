@@ -93,14 +93,19 @@ class AddSessionDialog(QDialog):
         self._load_tasks()
         form_layout.addRow("タスク:", self.task_combo)
 
-        # Date
-        self.date_edit = QDateEdit()
-        self.date_edit.setCalendarPopup(True)
-        self.date_edit.setDisplayFormat("yyyy/MM/dd")
+        # Start date
+        self.start_date_edit = QDateEdit()
+        self.start_date_edit.setCalendarPopup(True)
+        self.start_date_edit.setDisplayFormat("yyyy/MM/dd")
 
         # Start time
         self.start_time_edit = QTimeEdit()
         self.start_time_edit.setDisplayFormat("HH:mm")
+
+        # End date
+        self.end_date_edit = QDateEdit()
+        self.end_date_edit.setCalendarPopup(True)
+        self.end_date_edit.setDisplayFormat("yyyy/MM/dd")
 
         # End time
         self.end_time_edit = QTimeEdit()
@@ -114,17 +119,27 @@ class AddSessionDialog(QDialog):
             start_time_str = self.session_data.get("start_time", "00:00")
             end_time_str = self.session_data.get("end_time", "00:00")
 
+            # Check if there's an end_date field (new format) or use date for both (old format)
+            end_date_str = self.session_data.get("end_date", session_date_str)
+
             # Set task
             index = self.task_combo.findText(task_name)
             if index >= 0:
                 self.task_combo.setCurrentIndex(index)
 
-            # Set date
+            # Set start date
             try:
-                session_date = datetime.strptime(session_date_str, "%Y-%m-%d").date()
-                self.date_edit.setDate(QDate(session_date.year, session_date.month, session_date.day))
+                start_date = datetime.strptime(session_date_str, "%Y-%m-%d").date()
+                self.start_date_edit.setDate(QDate(start_date.year, start_date.month, start_date.day))
             except ValueError:
-                self.date_edit.setDate(QDate.currentDate())
+                self.start_date_edit.setDate(QDate.currentDate())
+
+            # Set end date
+            try:
+                end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+                self.end_date_edit.setDate(QDate(end_date.year, end_date.month, end_date.day))
+            except ValueError:
+                self.end_date_edit.setDate(QDate.currentDate())
 
             # Set times
             try:
@@ -140,12 +155,14 @@ class AddSessionDialog(QDialog):
                 self.end_time_edit.setTime(QTime.currentTime().addSecs(3600))
         else:
             # Default values for new session
-            self.date_edit.setDate(QDate.currentDate())
+            self.start_date_edit.setDate(QDate.currentDate())
+            self.end_date_edit.setDate(QDate.currentDate())
             self.start_time_edit.setTime(QTime.currentTime())
             self.end_time_edit.setTime(QTime.currentTime().addSecs(3600))  # +1 hour
 
-        form_layout.addRow("日付:", self.date_edit)
+        form_layout.addRow("開始日:", self.start_date_edit)
         form_layout.addRow("開始時刻:", self.start_time_edit)
+        form_layout.addRow("終了日:", self.end_date_edit)
         form_layout.addRow("終了時刻:", self.end_time_edit)
 
         layout.addLayout(form_layout)
@@ -179,18 +196,23 @@ class AddSessionDialog(QDialog):
             QMessageBox.warning(self, "エラー", "タスクを選択してください。")
             return
 
-        # Validate times
+        # Validate dates and times
+        start_date = self.start_date_edit.date().toPyDate()
         start_time = self.start_time_edit.time()
+        end_date = self.end_date_edit.date().toPyDate()
         end_time = self.end_time_edit.time()
 
-        if start_time >= end_time:
-            QMessageBox.warning(self, "エラー", "開始時刻は終了時刻より前である必要があります。")
+        # Combine date and time for comparison
+        start_datetime = datetime.combine(start_date, start_time.toPyTime())
+        end_datetime = datetime.combine(end_date, end_time.toPyTime())
+
+        if start_datetime >= end_datetime:
+            QMessageBox.warning(self, "エラー", "開始日時は終了日時より前である必要があります。")
             return
 
-        # Calculate duration
-        start_minutes = start_time.hour() * 60 + start_time.minute()
-        end_minutes = end_time.hour() * 60 + end_time.minute()
-        duration_minutes = end_minutes - start_minutes
+        # Calculate duration in minutes
+        duration = end_datetime - start_datetime
+        duration_minutes = int(duration.total_seconds() / 60)
 
         if duration_minutes <= 0:
             QMessageBox.warning(self, "エラー", "所要時間が0分以下です。")
@@ -201,18 +223,21 @@ class AddSessionDialog(QDialog):
     def get_session_data(self) -> Dict:
         """Get the session data from the dialog."""
         task_name = self.task_combo.currentText()
-        session_date = self.date_edit.date().toPyDate()
+        start_date = self.start_date_edit.date().toPyDate()
         start_time = self.start_time_edit.time()
+        end_date = self.end_date_edit.date().toPyDate()
         end_time = self.end_time_edit.time()
 
         # Calculate duration
-        start_minutes = start_time.hour() * 60 + start_time.minute()
-        end_minutes = end_time.hour() * 60 + end_time.minute()
-        duration_minutes = end_minutes - start_minutes
+        start_datetime = datetime.combine(start_date, start_time.toPyTime())
+        end_datetime = datetime.combine(end_date, end_time.toPyTime())
+        duration = end_datetime - start_datetime
+        duration_minutes = int(duration.total_seconds() / 60)
 
         return {
             "task": task_name,
-            "date": session_date.isoformat(),
+            "date": start_date.isoformat(),  # Keep "date" for backward compatibility (start date)
+            "end_date": end_date.isoformat(),  # Add end_date field
             "start_time": start_time.toString("HH:mm"),
             "end_time": end_time.toString("HH:mm"),
             "duration_minutes": duration_minutes
@@ -1095,28 +1120,63 @@ class CalendarWidget(QWidget):
             f"{selected_py_date.strftime('%Y年%m月%d日 (%A)')}"
         )
 
-        # Get sessions for this day
-        day_sessions = [
-            s for s in self.task_sessions
-            if s.get("date") == date_str
-        ]
+        # Get sessions for this day (including sessions that span into or from this day)
+        day_sessions = []
+        for s in self.task_sessions:
+            start_date_str = s.get("date", "")
+            end_date_str = s.get("end_date", start_date_str)
+
+            # Include if this day is the start date or end date
+            if start_date_str == date_str or end_date_str == date_str:
+                day_sessions.append(s)
 
         # Convert string times to datetime objects
         converted_sessions = []
         for session in day_sessions:
             try:
+                start_date_str = session.get("date", "")
+                end_date_str = session.get("end_date", start_date_str)
                 start_str = session.get("start_time", "00:00")
                 end_str = session.get("end_time", "00:00")
 
-                start_time = datetime.strptime(start_str, "%H:%M").time()
-                end_time = datetime.strptime(end_str, "%H:%M").time()
+                # If session spans multiple days, split it
+                if start_date_str != end_date_str:
+                    if start_date_str == date_str:
+                        # This is the start day - show from start time to 24:00
+                        start_time = datetime.strptime(start_str, "%H:%M").time()
+                        # Use 23:59:59 to represent end of day
+                        end_time = datetime.strptime("23:59", "%H:%M").time()
 
-                converted_sessions.append({
-                    "task": session.get("task", "不明"),
-                    "start": start_time,
-                    "end": end_time,
-                    "duration_minutes": session.get("duration_minutes", 0)
-                })
+                        converted_sessions.append({
+                            "task": session.get("task", "不明") + " →",
+                            "start": start_time,
+                            "end": end_time,
+                            "duration_minutes": session.get("duration_minutes", 0),
+                            "is_split_start": True
+                        })
+                    elif end_date_str == date_str:
+                        # This is the end day - show from 00:00 to end time
+                        start_time = datetime.strptime("00:00", "%H:%M").time()
+                        end_time = datetime.strptime(end_str, "%H:%M").time()
+
+                        converted_sessions.append({
+                            "task": "← " + session.get("task", "不明"),
+                            "start": start_time,
+                            "end": end_time,
+                            "duration_minutes": session.get("duration_minutes", 0),
+                            "is_split_end": True
+                        })
+                else:
+                    # Normal single-day session
+                    start_time = datetime.strptime(start_str, "%H:%M").time()
+                    end_time = datetime.strptime(end_str, "%H:%M").time()
+
+                    converted_sessions.append({
+                        "task": session.get("task", "不明"),
+                        "start": start_time,
+                        "end": end_time,
+                        "duration_minutes": session.get("duration_minutes", 0)
+                    })
             except (ValueError, KeyError):
                 continue
 
@@ -1175,23 +1235,42 @@ class CalendarWidget(QWidget):
 
             # Update task-specific study time
             task_name = session_data["task"]
-            date_str = session_data["date"]
+            start_date_str = session_data["date"]
+            end_date_str = session_data.get("end_date", start_date_str)
             duration = session_data["duration_minutes"]
 
-            # Update total study time
-            study_records = self.settings.value("study_time", {})
-            if date_str not in study_records:
-                study_records[date_str] = 0
-            study_records[date_str] += duration
-            self.settings.setValue("study_time", study_records)
+            # If the session spans multiple days, distribute the time across those days
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
 
-            # Update task-specific study time
+            study_records = self.settings.value("study_time", {})
             task_study_records = self.settings.value("task_study_time", {})
-            if task_name not in task_study_records:
-                task_study_records[task_name] = {}
-            if date_str not in task_study_records[task_name]:
-                task_study_records[task_name][date_str] = 0
-            task_study_records[task_name][date_str] += duration
+
+            if start_date == end_date:
+                # Single day session - record all time on that day
+                if start_date_str not in study_records:
+                    study_records[start_date_str] = 0
+                study_records[start_date_str] += duration
+
+                if task_name not in task_study_records:
+                    task_study_records[task_name] = {}
+                if start_date_str not in task_study_records[task_name]:
+                    task_study_records[task_name][start_date_str] = 0
+                task_study_records[task_name][start_date_str] += duration
+            else:
+                # Multi-day session - record time on the start date for now
+                # (You could also split the time proportionally across days if needed)
+                if start_date_str not in study_records:
+                    study_records[start_date_str] = 0
+                study_records[start_date_str] += duration
+
+                if task_name not in task_study_records:
+                    task_study_records[task_name] = {}
+                if start_date_str not in task_study_records[task_name]:
+                    task_study_records[task_name][start_date_str] = 0
+                task_study_records[task_name][start_date_str] += duration
+
+            self.settings.setValue("study_time", study_records)
             self.settings.setValue("task_study_time", task_study_records)
 
             # Reload data and refresh view

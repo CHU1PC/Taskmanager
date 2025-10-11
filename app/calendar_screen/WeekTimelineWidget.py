@@ -35,10 +35,32 @@ class WeekTimelineWidget(QWidget):
         # Group sessions by date
         self.sessions_by_date = {}
         for session in sessions:
-            date_str = session.get("date", "")
-            if date_str not in self.sessions_by_date:
-                self.sessions_by_date[date_str] = []
-            self.sessions_by_date[date_str].append(session)
+            start_date_str = session.get("date", "")
+            end_date_str = session.get("end_date", start_date_str)
+
+            # If session spans multiple days, split it
+            if start_date_str != end_date_str:
+                # Add first part (start day to 24:00)
+                if start_date_str not in self.sessions_by_date:
+                    self.sessions_by_date[start_date_str] = []
+                first_part = session.copy()
+                first_part["end_time"] = "24:00"
+                first_part["is_split_start"] = True
+                self.sessions_by_date[start_date_str].append(first_part)
+
+                # Add second part (0:00 to end time on end day)
+                if end_date_str not in self.sessions_by_date:
+                    self.sessions_by_date[end_date_str] = []
+                second_part = session.copy()
+                second_part["start_time"] = "00:00"
+                second_part["date"] = end_date_str
+                second_part["is_split_end"] = True
+                self.sessions_by_date[end_date_str].append(second_part)
+            else:
+                # Normal single-day session
+                if start_date_str not in self.sessions_by_date:
+                    self.sessions_by_date[start_date_str] = []
+                self.sessions_by_date[start_date_str].append(session)
         self.update()
 
     def set_zoom(self, zoom: float) -> None:
@@ -160,8 +182,15 @@ class WeekTimelineWidget(QWidget):
                     start_str = session.get("start_time", "00:00")
                     end_str = session.get("end_time", "00:00")
 
+                    # Handle 24:00 as end of day
+                    if end_str == "24:00":
+                        end_hour_value = 24.0
+                    else:
+                        end_time = datetime.strptime(end_str, "%H:%M").time()
+                        end_hour_value = end_time.hour + end_time.minute / 60.0
+
                     start_time = datetime.strptime(start_str, "%H:%M").time()
-                    end_time = datetime.strptime(end_str, "%H:%M").time()
+                    start_hour_value = start_time.hour + start_time.minute / 60.0
 
                     # Assign color to task
                     if task_name not in task_color_map:
@@ -171,11 +200,8 @@ class WeekTimelineWidget(QWidget):
                     color = task_color_map[task_name]
 
                     # Calculate position
-                    start_hour = start_time.hour + start_time.minute / 60.0
-                    end_hour = end_time.hour + end_time.minute / 60.0
-
-                    y1 = header_height + int(start_hour * hour_height)
-                    y2 = header_height + int(end_hour * hour_height)
+                    y1 = header_height + int(start_hour_value * hour_height)
+                    y2 = header_height + int(end_hour_value * hour_height)
                     block_height = y2 - y1
 
                     if block_height < 5:  # Minimum height
@@ -206,6 +232,13 @@ class WeekTimelineWidget(QWidget):
 
                         # Truncate task name if too long
                         display_name = task_name if len(task_name) <= 12 else task_name[:10] + "..."
+
+                        # Add continuation indicators for split sessions
+                        if session.get("is_split_start"):
+                            display_name += " →"
+                        elif session.get("is_split_end"):
+                            display_name = "← " + display_name
+
                         painter.drawText(
                             block_x + 5, y1 + 5,
                             block_width - 10, 15,

@@ -30,6 +30,7 @@ class SimpleTrackerWidget(QWidget):
 
         # Tracking state
         self.session_start_time: Optional[datetime.datetime] = None
+        self.session_start_date: Optional[str] = None  # Store the date when tracking started
         self.is_tracking: bool = False
 
         # Initialize UI
@@ -174,6 +175,7 @@ class SimpleTrackerWidget(QWidget):
 
         self.is_tracking = True
         self.session_start_time = datetime.datetime.now()
+        self.session_start_date = datetime.date.today().isoformat()  # Record the date when tracking starts
 
         self.start_btn.setEnabled(False)
         self.stop_btn.setEnabled(True)
@@ -206,6 +208,7 @@ class SimpleTrackerWidget(QWidget):
         # Reset state
         self.is_tracking = False
         self.session_start_time = None
+        self.session_start_date = None
 
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
@@ -219,7 +222,8 @@ class SimpleTrackerWidget(QWidget):
 
     def _save_session(self, start_time: datetime.datetime, end_time: datetime.datetime, duration_minutes: int) -> None:
         """Save session data with merging logic."""
-        today = datetime.date.today().isoformat()
+        # Use the date when tracking started, not the current date
+        today = self.session_start_date if self.session_start_date else datetime.date.today().isoformat()
 
         # Load existing sessions
         task_sessions = self.task_settings.value("task_sessions", [])

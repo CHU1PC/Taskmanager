@@ -37,6 +37,7 @@ class StopwatchWidget(QWidget):
         self.is_running: bool = False
         self.last_save_tenths: int = 0
         self.session_start_time: Optional[datetime.datetime] = None
+        self.session_start_date: Optional[str] = None  # Store the date when session started
 
         # Auto-save interval (120 seconds = 1200 tenths)
         self.auto_save_interval: int = 1200
@@ -310,9 +311,10 @@ class StopwatchWidget(QWidget):
             # Start BGM
             self.bgm_player.play()
 
-            # Record session start time (only if starting fresh)
+            # Record session start time and date (only if starting fresh)
             if self.session_start_time is None:
                 self.session_start_time = datetime.datetime.now()
+                self.session_start_date = datetime.date.today().isoformat()
         else:
             self.is_running = False
             self.timer.stop()
@@ -338,6 +340,7 @@ class StopwatchWidget(QWidget):
         self.shared_state.elapsed_tenths = 0
         self.last_save_tenths = 0
         self.session_start_time = None  # Reset session
+        self.session_start_date = None  # Reset session date
         self.start_stop_btn.setText("開始")
         self._update_display()
         self.save_indicator.setText("最終保存: リセット済み")
@@ -394,7 +397,8 @@ class StopwatchWidget(QWidget):
         if minutes_to_save <= 0:
             return
 
-        today = datetime.date.today().isoformat()
+        # Use the date when session started, not the current date
+        today = self.session_start_date if self.session_start_date else datetime.date.today().isoformat()
 
         # Record total study time
         study_records = self.task_settings.value("study_time", {})
@@ -438,7 +442,8 @@ class StopwatchWidget(QWidget):
             if self.session_start_time is not None:
                 minutes_to_save = 1  # At least 1 minute for session recording
 
-        today = datetime.date.today().isoformat()
+        # Use the date when session started, not the current date
+        today = self.session_start_date if self.session_start_date else datetime.date.today().isoformat()
 
         # Record total study time
         study_records = self.task_settings.value("study_time", {})
@@ -474,8 +479,9 @@ class StopwatchWidget(QWidget):
             task_sessions.append(session_data)
             self.task_settings.setValue("task_sessions", task_sessions)
 
-            # Reset session start time
+            # Reset session start time and date
             self.session_start_time = None
+            self.session_start_date = None
 
         # Update last save point
         self.last_save_tenths = self.shared_state.elapsed_tenths

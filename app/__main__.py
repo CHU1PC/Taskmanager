@@ -1,15 +1,25 @@
+import os
 import sys
 
-from PyQt6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QListWidget,
-                             QListWidgetItem, QStackedWidget, QApplication)
+# Suppress FFmpeg warnings for MP3 playback
+os.environ['QT_LOGGING_RULES'] = 'qt.multimedia.ffmpeg=false'
+
 from PyQt6.QtCore import QSize
 from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import (
+    QApplication,
+    QHBoxLayout,
+    QListWidget,
+    QListWidgetItem,
+    QMainWindow,
+    QStackedWidget,
+    QWidget,
+)
 
-from pomodoro_screen import PomodoroWidget
-from task_screen import TasksWidget
-from urgency_screen import UrgencyWidget
-
-from utils import resource_path
+from app.pomodoro_screen import PomodoroWidget
+from app.task_screen import TasksWidget
+from app.urgency_screen import UrgencyWidget
+from app.utils import resource_path
 
 
 class MainWindow(QMainWindow):
@@ -55,12 +65,16 @@ class MainWindow(QMainWindow):
 
         main_layout.addWidget(self.stack, stretch=1)
 
-        self.nav.currentRowChanged.connect(self.reset_urgency)
+        self.nav.currentRowChanged.connect(self.reset_urgency)  # type: ignore
         self.nav.setCurrentRow(0)
 
-    def reset_urgency(self, current_row):
+    def reset_urgency(self, current_row: int) -> None:
         self.stack.setCurrentIndex(current_row)
-        if current_row == 2:
+        if current_row == 0:
+            # Refresh task lists in both Pomodoro and Stopwatch tabs
+            self.pomodoro_widget.timer_widget.refresh_tasks()
+            self.pomodoro_widget.stopwatch_widget.refresh_tasks()
+        elif current_row == 2:
             self.urgency_widget.refresh_tasks()
 
 

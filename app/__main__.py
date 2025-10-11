@@ -1,4 +1,8 @@
+import os
 import sys
+
+# Suppress FFmpeg warnings for MP3 playback
+os.environ['QT_LOGGING_RULES'] = 'qt.multimedia.ffmpeg=false'
 
 from PyQt6.QtCore import QSize
 from PyQt6.QtGui import QIcon
@@ -66,7 +70,11 @@ class MainWindow(QMainWindow):
 
     def reset_urgency(self, current_row: int) -> None:
         self.stack.setCurrentIndex(current_row)
-        if current_row == 2:
+        if current_row == 0:
+            # Refresh task lists in both Pomodoro and Stopwatch tabs
+            self.pomodoro_widget.timer_widget.refresh_tasks()
+            self.pomodoro_widget.stopwatch_widget.refresh_tasks()
+        elif current_row == 2:
             self.urgency_widget.refresh_tasks()
 
 

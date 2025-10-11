@@ -5,5 +5,6 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13.5"
 dependencies = [
+    "pyinstaller>=6.16.0",
     "pyqt6>=6.9.1",
 ]

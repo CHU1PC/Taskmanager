@@ -83,14 +83,8 @@ for key in settings.allKeys():
 
  もしzipファイルが動かない場合は制作者に連絡するか、自身でローカルにcloneしていただき次のコマンドをカレントディレクトリをGUIにしてから実行してください
 
-## for mac
+## for mac & Windows users
 
 ```bash
-pyinstaller --onefile --windowed --add-data 'audio/*.mp3:audio' --add-data 'img/*:img' --hidden-import PyQt6 main.py
-```
-
-## for windows
-
-```bash
-pyinstaller --onefile --windowed --add-data "audio/*.mp3:audio" --add-data "img/*:img" --hidden-import PyQt6 main.py
+uv run pyinstaller --onedir --windowed --name "TaskManager" --add-data "app/audio:app/audio" --add-data "app/img:app/img" --hidden-import PyQt6.QtCore --hidden-import PyQt6.QtGui --hidden-import PyQt6.QtWidgets --hidden-import PyQt6.QtMultimedia app/__main__.py
 ```

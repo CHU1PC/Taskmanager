@@ -1,5 +1,6 @@
 """Pomodoro timer widget with complete UI and functionality."""
 import datetime
+from typing import Optional
 
 from PyQt6.QtCore import QSettings, Qt, QTimer, QUrl
 from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
@@ -46,6 +47,7 @@ class TimerWidget(QWidget):
         self.is_break: bool = False
         self.remaining_tenths: int = 0
         self.total_tenths: int = 0
+        self.session_start_time: Optional[datetime.datetime] = None
 
         # Initialize UI components
         self._init_ui()
@@ -475,6 +477,10 @@ class TimerWidget(QWidget):
         self.progress.setValue(self.total_tenths)
         self.start_btn.setText("停止")
 
+        # Record session start time (only for work phases)
+        if not self.is_break:
+            self.session_start_time = datetime.datetime.now()
+
     def _update_timer(self) -> None:
         """Update timer countdown."""
         if self.remaining_tenths > 0:
@@ -581,6 +587,26 @@ class TimerWidget(QWidget):
         task_study_records[self.shared_state.selected_task][today] += minutes
 
         self.task_settings.setValue("task_study_time", task_study_records)
+
+        # Record session with start and end times
+        if self.session_start_time is not None:
+            end_time = datetime.datetime.now()
+
+            task_sessions = self.task_settings.value("task_sessions", [])
+
+            session_data = {
+                "task": self.shared_state.selected_task,
+                "date": today,
+                "start_time": self.session_start_time.strftime("%H:%M"),
+                "end_time": end_time.strftime("%H:%M"),
+                "duration_minutes": minutes
+            }
+
+            task_sessions.append(session_data)
+            self.task_settings.setValue("task_sessions", task_sessions)
+
+            # Reset session start time
+            self.session_start_time = None
 
         return True
 

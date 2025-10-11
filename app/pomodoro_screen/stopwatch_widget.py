@@ -1,5 +1,6 @@
 """Stopwatch widget for continuous time tracking with auto-save."""
 import datetime
+from typing import Optional
 
 from PyQt6.QtCore import QSettings, Qt, QTimer, QUrl
 from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
@@ -35,6 +36,7 @@ class StopwatchWidget(QWidget):
         # Stopwatch state
         self.is_running: bool = False
         self.last_save_tenths: int = 0
+        self.session_start_time: Optional[datetime.datetime] = None
 
         # Auto-save interval (120 seconds = 1200 tenths)
         self.auto_save_interval: int = 1200
@@ -307,14 +309,18 @@ class StopwatchWidget(QWidget):
             self.start_stop_btn.setText("停止")
             # Start BGM
             self.bgm_player.play()
+
+            # Record session start time (only if starting fresh)
+            if self.session_start_time is None:
+                self.session_start_time = datetime.datetime.now()
         else:
             self.is_running = False
             self.timer.stop()
             self.start_stop_btn.setText("再開")
             # Pause BGM
             self.bgm_player.pause()
-            # Save on stop
-            self._save_time()
+            # Auto-save on stop (but don't end session yet)
+            self._save_time_without_session()
 
     def _on_reset(self) -> None:
         """Handle reset button click."""
@@ -324,13 +330,14 @@ class StopwatchWidget(QWidget):
         # Stop BGM
         self.bgm_player.stop()
 
-        # Save before reset
+        # Save before reset (including session end)
         if self.shared_state.elapsed_tenths > 0:
             self._save_time()
 
         self.is_running = False
         self.shared_state.elapsed_tenths = 0
         self.last_save_tenths = 0
+        self.session_start_time = None  # Reset session
         self.start_stop_btn.setText("開始")
         self._update_display()
         self.save_indicator.setText("最終保存: リセット済み")
@@ -358,9 +365,9 @@ class StopwatchWidget(QWidget):
         self.shared_state.elapsed_tenths += 1
         self._update_display()
 
-        # Auto-save every 2 minutes
+        # Auto-save every 2 minutes (without ending session)
         if self.shared_state.elapsed_tenths - self.last_save_tenths >= self.auto_save_interval:
-            self._save_time()
+            self._save_time_without_session()
 
     def _update_display(self) -> None:
         """Update time display."""
@@ -375,8 +382,8 @@ class StopwatchWidget(QWidget):
         session_minutes = total_seconds // 60
         self.session_label.setText(f"今セッション: {session_minutes}分")
 
-    def _save_time(self) -> None:
-        """Save accumulated time to settings."""
+    def _save_time_without_session(self) -> None:
+        """Save accumulated time to settings without ending session."""
         if not self.shared_state.selected_task or self.shared_state.elapsed_tenths <= self.last_save_tenths:
             return
 
@@ -405,6 +412,70 @@ class StopwatchWidget(QWidget):
         task_study_records[self.shared_state.selected_task][today] += minutes_to_save
 
         self.task_settings.setValue("task_study_time", task_study_records)
+
+        # Update last save point
+        self.last_save_tenths = self.shared_state.elapsed_tenths
+
+        # Update indicator
+        now = datetime.datetime.now().strftime("%H:%M:%S")
+        self.save_indicator.setText(f"最終保存: {now} ({minutes_to_save}分)")
+
+        # Play save sound
+        self.player.setSource(self.save_sound)
+        self.player.play()
+
+    def _save_time(self) -> None:
+        """Save accumulated time to settings and end session."""
+        if not self.shared_state.selected_task or self.shared_state.elapsed_tenths <= self.last_save_tenths:
+            return
+
+        # Calculate time to save (in minutes, rounded down)
+        tenths_to_save = self.shared_state.elapsed_tenths - self.last_save_tenths
+        minutes_to_save = tenths_to_save // 600  # Round down to nearest minute
+
+        if minutes_to_save <= 0:
+            # Even if no new minutes, still save session if we have a start time
+            if self.session_start_time is not None:
+                minutes_to_save = 1  # At least 1 minute for session recording
+
+        today = datetime.date.today().isoformat()
+
+        # Record total study time
+        study_records = self.task_settings.value("study_time", {})
+        if today not in study_records:
+            study_records[today] = 0
+        study_records[today] += minutes_to_save
+        self.task_settings.setValue("study_time", study_records)
+
+        # Record task-specific study time
+        task_study_records = self.task_settings.value("task_study_time", {})
+        if self.shared_state.selected_task not in task_study_records:
+            task_study_records[self.shared_state.selected_task] = {}
+        if today not in task_study_records[self.shared_state.selected_task]:
+            task_study_records[self.shared_state.selected_task][today] = 0
+        task_study_records[self.shared_state.selected_task][today] += minutes_to_save
+
+        self.task_settings.setValue("task_study_time", task_study_records)
+
+        # Record session with start and end times
+        if self.session_start_time is not None:
+            end_time = datetime.datetime.now()
+
+            task_sessions = self.task_settings.value("task_sessions", [])
+
+            session_data = {
+                "task": self.shared_state.selected_task,
+                "date": today,
+                "start_time": self.session_start_time.strftime("%H:%M"),
+                "end_time": end_time.strftime("%H:%M"),
+                "duration_minutes": minutes_to_save
+            }
+
+            task_sessions.append(session_data)
+            self.task_settings.setValue("task_sessions", task_sessions)
+
+            # Reset session start time
+            self.session_start_time = None
 
         # Update last save point
         self.last_save_tenths = self.shared_state.elapsed_tenths

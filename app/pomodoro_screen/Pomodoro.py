@@ -1,9 +1,9 @@
-"""Pomodoro screen with tabbed interface for timer and stopwatch."""
+"""Pomodoro screen with tabbed interface for timer and simple tracker."""
 from PyQt6.QtWidgets import QTabWidget, QWidget, QVBoxLayout
 
 from app.pomodoro_screen.shared_state import SharedTimerState
 from app.pomodoro_screen.timer_widget import TimerWidget
-from app.pomodoro_screen.stopwatch_widget import StopwatchWidget
+from app.pomodoro_screen.simple_tracker_widget import SimpleTrackerWidget
 
 
 class PomodoroWidget(QWidget):
@@ -48,9 +48,9 @@ class PomodoroWidget(QWidget):
         self.timer_widget = TimerWidget(self.shared_state)
         self.tabs.addTab(self.timer_widget, "🍅 ポモドーロ")
 
-        # Create and add stopwatch widget
-        self.stopwatch_widget = StopwatchWidget(self.shared_state)
-        self.tabs.addTab(self.stopwatch_widget, "⏱️ ストップウォッチ")
+        # Create and add simple tracker widget
+        self.simple_tracker_widget = SimpleTrackerWidget(self.shared_state)
+        self.tabs.addTab(self.simple_tracker_widget, "📝 簡単計測")
 
         # Connect tab change signal to refresh tasks
         self.tabs.currentChanged.connect(self._on_tab_changed)
@@ -62,5 +62,5 @@ class PomodoroWidget(QWidget):
         """Handle tab change event to refresh task lists."""
         if index == 0:  # Pomodoro tab
             self.timer_widget.refresh_tasks()
-        elif index == 1:  # Stopwatch tab
-            self.stopwatch_widget.refresh_tasks()
+        elif index == 1:  # Simple tracker tab
+            self.simple_tracker_widget.refresh_tasks()

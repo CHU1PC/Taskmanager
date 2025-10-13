@@ -3,13 +3,12 @@ from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
 from PyQt6.QtCore import QSettings
 
 
-class TaskEditDialog(QDialog):
-    def __init__(self, task_name, current_priority, current_parent_id=None, current_task_index=None, parent=None):
+class TaskAddDialog(QDialog):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("タスクを編集")
+        self.setWindowTitle("タスクを追加")
         self.setModal(True)
-        self.resize(400, 300)
-        self.current_task_index = current_task_index
+        self.resize(400, 350)
         self.settings = QSettings("CHU1PC", "TaskManagerApp")
 
         # ダークテーマに合わせたスタイル
@@ -52,7 +51,8 @@ class TaskEditDialog(QDialog):
 
         # タスク名入力
         layout.addWidget(QLabel("タスク名:"))
-        self.name_edit = QLineEdit(task_name)
+        self.name_edit = QLineEdit()
+        self.name_edit.setPlaceholderText("新しいタスクの名前を入力...")
         layout.addWidget(self.name_edit)
 
         # 緊急度選択
@@ -63,13 +63,6 @@ class TaskEditDialog(QDialog):
         self.priority_combo.addItem("⚡ 緊急×非重要", "urgent_not_important")
         self.priority_combo.addItem("💡 非緊急×重要", "not_urgent_important")
         self.priority_combo.addItem("📝 非緊急×非重要", "not_urgent_not_important")
-
-        # 現在の緊急度を選択状態にする
-        for i in range(self.priority_combo.count()):
-            if self.priority_combo.itemData(i) == current_priority:
-                self.priority_combo.setCurrentIndex(i)
-                break
-
         layout.addWidget(self.priority_combo)
 
         # 親タスク選択
@@ -81,24 +74,14 @@ class TaskEditDialog(QDialog):
         stored_tasks = self.settings.value("tasks", [])
         for idx, task_entry in enumerate(stored_tasks):
             task_text = task_entry.get("text", "")
-            # 自分自身は親として選択できない
-            if idx != self.current_task_index and task_text:
-                # 循環参照を防ぐため、自分の子孫タスクも除外
-                if not self._is_descendant(idx, self.current_task_index, stored_tasks):
-                    self.parent_combo.addItem(task_text, idx)
-
-        # 現在の親タスクを選択状態にする
-        if current_parent_id is not None:
-            for i in range(self.parent_combo.count()):
-                if self.parent_combo.itemData(i) == current_parent_id:
-                    self.parent_combo.setCurrentIndex(i)
-                    break
+            if task_text:
+                self.parent_combo.addItem(task_text, idx)
 
         layout.addWidget(self.parent_combo)
 
         # ボタン
         button_layout = QHBoxLayout()
-        self.ok_button = QPushButton("OK")
+        self.ok_button = QPushButton("追加")
         self.cancel_button = QPushButton("キャンセル")
 
         self.ok_button.clicked.connect(self.accept)
@@ -111,32 +94,11 @@ class TaskEditDialog(QDialog):
         # エンターキーでOK
         self.name_edit.returnPressed.connect(self.accept)
 
-    def _is_descendant(self, task_idx, potential_ancestor_idx, tasks):
-        """タスクが別のタスクの子孫かどうかをチェック（循環参照を防ぐため）"""
-        if potential_ancestor_idx is None:
-            return False
-
-        current_idx = task_idx
-        visited = set()
-
-        while current_idx is not None:
-            if current_idx in visited:
-                # 循環参照が既に存在する場合
-                return True
-            visited.add(current_idx)
-
-            if current_idx >= len(tasks):
-                break
-
-            parent_id = tasks[current_idx].get("parent_task_id")
-            if parent_id == potential_ancestor_idx:
-                return True
-            current_idx = parent_id
-
-        return False
+        # フォーカスをタスク名入力に設定
+        self.name_edit.setFocus()
 
     def get_values(self):
-        """編集された値を取得"""
+        """入力された値を取得"""
         return {
             'name': self.name_edit.text().strip(),
             'priority_data': self.priority_combo.currentData(),

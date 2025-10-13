@@ -606,6 +606,9 @@ class TasksWidget(QWidget):
             # チェックが変わったとき
             # 親タスクがチェックされた場合、子タスクも全てチェックする
             if new_check == Qt.CheckState.Checked:
+                # itemChanged シグナルを一時的にブロック（無限ループ防止）
+                self.task_list.itemChanged.disconnect(self._on_item_changed)
+
                 # 現在のタスクのインデックスを取得
                 current_idx = None
                 for i in range(self.task_list.count()):
@@ -617,9 +620,6 @@ class TasksWidget(QWidget):
                     # 全ての子タスクを取得してチェック
                     child_indices = self._get_child_task_indices(current_idx)
 
-                    # itemChanged シグナルを一時的にブロック（無限ループ防止）
-                    self.task_list.itemChanged.disconnect(self._on_item_changed)
-
                     for child_idx in child_indices:
                         child_item = self.task_list.item(child_idx)
                         if child_item:
@@ -627,11 +627,13 @@ class TasksWidget(QWidget):
                             # 子タスクの保存状態も更新
                             child_item.setData(Qt.ItemDataRole.UserRole + 2, Qt.CheckState.Checked)
 
-                    # シグナルを再接続
-                    self.task_list.itemChanged.connect(self._on_item_changed)
+                # シグナルを再接続
+                self.task_list.itemChanged.connect(self._on_item_changed)
 
-            self.sort_tasks()
+            # まず保存してから（親子関係のインデックスを正しく保存）
             self._save_tasks()
+            # その後ソート（保存されたデータから親子関係を再構築）
+            self.sort_tasks()
         elif new_text != old_text:
             # テキストが変わったとき（直接編集された場合）
             original_name = new_text.strip()
@@ -1022,6 +1024,19 @@ class TasksWidget(QWidget):
         # 現在のソート方式を取得
         sort_type = self.task_sort.currentText()
 
+        # 0. ソート前に親子関係を名前ベースで保存
+        parent_name_map = {}  # task_name -> parent_task_name
+        for i in range(self.task_list.count()):
+            item = self.task_list.item(i)
+            if item:
+                task_name = item.data(Qt.ItemDataRole.UserRole + 5) or item.text()
+                parent_id = item.data(Qt.ItemDataRole.UserRole + 4)
+                if parent_id is not None and 0 <= parent_id < self.task_list.count():
+                    parent_item = self.task_list.item(parent_id)
+                    if parent_item:
+                        parent_name = parent_item.data(Qt.ItemDataRole.UserRole + 5) or parent_item.text()
+                        parent_name_map[task_name] = parent_name
+
         # 1. いったん全ての項目をリストから取り出す
         items = []
         while self.task_list.count() > 0:
@@ -1035,6 +1050,31 @@ class TasksWidget(QWidget):
         # 3. 並び替えたリストをQListWidgetに戻す
         for item in sorted_items:
             self.task_list.addItem(item)
+
+        # 4. ソート後に親子関係のインデックスを再構築
+        name_to_index = {}  # task_name -> current_index
+        for i in range(self.task_list.count()):
+            item = self.task_list.item(i)
+            if item:
+                task_name = item.data(Qt.ItemDataRole.UserRole + 5) or item.text()
+                name_to_index[task_name] = i
+
+        # 親子関係を復元
+        for i in range(self.task_list.count()):
+            item = self.task_list.item(i)
+            if item:
+                task_name = item.data(Qt.ItemDataRole.UserRole + 5) or item.text()
+                if task_name in parent_name_map:
+                    parent_name = parent_name_map[task_name]
+                    if parent_name in name_to_index:
+                        new_parent_id = name_to_index[parent_name]
+                        item.setData(Qt.ItemDataRole.UserRole + 4, new_parent_id)
+                    else:
+                        # 親が見つからない場合はクリア
+                        item.setData(Qt.ItemDataRole.UserRole + 4, None)
+                else:
+                    # 元々親がない場合
+                    item.setData(Qt.ItemDataRole.UserRole + 4, None)
 
         # 並び順設定を保存
         self.settings.setValue("sort_type", sort_type)

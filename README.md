@@ -86,5 +86,5 @@ for key in settings.allKeys():
 ## for mac & Windows users
 
 ```bash
-uv run pyinstaller --onedir --windowed --name "TaskManager" --add-data "app/audio:app/audio" --add-data "app/img:app/img" --hidden-import PyQt6.QtCore --hidden-import PyQt6.QtGui --hidden-import PyQt6.QtWidgets --hidden-import PyQt6.QtMultimedia app/__main__.py
+uv run pyinstaller -y --onedir --windowed --name "TaskManager" --add-data "app/audio:app/audio" --add-data "app/img:app/img" --hidden-import PyQt6.QtCore --hidden-import PyQt6.QtGui --hidden-import PyQt6.QtWidgets --hidden-import PyQt6.QtMultimedia app/__main__.py
 ```

@@ -380,19 +380,22 @@ class PeriodReportDialog(QDialog):
         for session in self.task_sessions:
             try:
                 # Parse session date and time
-                session_date_str = session.get("date", "")
+                session_start_date_str = session.get("date", "")
+                session_end_date_str = session.get("end_date", session_start_date_str)
                 session_start_str = session.get("start_time", "00:00")
                 session_end_str = session.get("end_time", "00:00")
 
-                session_date = datetime.strptime(session_date_str, "%Y-%m-%d").date()
+                session_start_date = datetime.strptime(session_start_date_str, "%Y-%m-%d").date()
+                session_end_date = datetime.strptime(session_end_date_str, "%Y-%m-%d").date()
                 session_start_time = datetime.strptime(session_start_str, "%H:%M").time()
                 session_end_time = datetime.strptime(session_end_str, "%H:%M").time()
 
-                session_start = datetime.combine(session_date, session_start_time)
-                session_end = datetime.combine(session_date, session_end_time)
+                session_start = datetime.combine(session_start_date, session_start_time)
+                session_end = datetime.combine(session_end_date, session_end_time)
 
-                # Check if session is within the specified period
-                if session_start >= start_datetime and session_end <= end_datetime:
+                # Check if session overlaps with the specified period
+                # A session overlaps if: session_start < period_end AND session_end > period_start
+                if session_start < end_datetime and session_end > start_datetime:
                     task_name = session.get("task", "不明")
                     duration = session.get("duration_minutes", 0)
 
